@@ -7,17 +7,15 @@
 #   burns a full suite); main runs are never cancelled so every merge keeps
 #   a complete record.
 # - The pnpm store is cached against pnpm-lock.yaml via setup-node.
+# - The matrix is exactly the documented support surface from `engines`:
+#   the Node 22 floor line and current LTS. The floor is 22.15 because
+#   src/maps/tileData.ts needs node:zlib's zstd functions (added v22.15.0),
+#   which the first floor-leg run proved by failing on Node 20 — and pnpm 11
+#   itself needs Node >= 22.13. Do not add legs without a documented
+#   commitment.
 # - Tests that cross-check against a real Tiled install skip themselves in
 #   CI (`hasTiledCli` is false); `verify:tiled-1.12.2` runs only on
 #   machines that have Tiled, by hand.
-#
-# The Node 20 floor from `engines` is a RUNTIME commitment to users of the
-# published package, not a toolchain one: pnpm 11 itself needs node:sqlite
-# (Node >= 22) and crashes under Node 20, which the first live run proved.
-# So the floor job installs and builds under current LTS, then switches to
-# Node 20 and runs the suite through vitest directly — exercising dist/
-# the way an `npx tiled-mcp-pro` user on the floor version would. Do not
-# collapse it back into a pnpm-driven matrix leg.
 name: CI
 
 on:
@@ -33,36 +31,16 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
-
-  node-floor:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 20
-          # setup-node v5 auto-caches when packageManager is present, which
-          # would run `pnpm store path` under Node 20 — and pnpm 11 needs
-          # node:sqlite (Node >= 22.13). Caching already happened above.
-          package-manager-cache: false
-      - name: Run the suite on the engines floor
-        run: |
-          node --version
-          npx vitest run

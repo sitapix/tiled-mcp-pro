@@ -45,7 +45,7 @@
     "verify:tiled-1.12.2": "tsx scripts/verify-tiled-1.12.2.ts"
   },
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.15.0"
   },
   "packageManager": "pnpm@11.3.0",
   "dependencies": {
