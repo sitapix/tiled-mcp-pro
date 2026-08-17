@@ -372,6 +372,16 @@ validate-then-fix, and map description.
   gain that `tiled_render_preview` mostly covers.
 - **No game runtime.** This manages map assets, not how an engine consumes them.
 - **No reimplementation of AutoMapping.** Rule semantics are intricate and version-dependent.
+  Delegating to Tiled itself was probed and is impossible in 1.12.2: `--evaluate` offers
+  exactly two ways to obtain a `TileMap`, and each fails a different precondition of
+  `EditableMap::autoMap` (`src/tiled/editablemap.cpp` in the Tiled sources, which demands a
+  `MapDocument`). `tiled.open()` would create that document but throws
+  `Error: Editor not available` without the GUI; `MapFormat.read()` works headlessly — it is
+  how terrain painting drives `wangEdit()` — but returns a detached map, and `autoMap()` on it
+  throws `Error: AutoMapping is currently not supported for detached maps`.
+  `tests/automapCanary.test.ts` re-runs both probes against the installed Tiled and fails
+  loudly the day upstream lifts the restriction, so this decision cannot silently outlive its
+  reason.
 - **No DSL for adjacency constraints.** AutoMapping and Wang terrain cover nearly all of it, and
   a bespoke constraint engine has no floor.
 - **No implicit session state.** Every call carries its paths, ids, revisions, or a TTL-bound
