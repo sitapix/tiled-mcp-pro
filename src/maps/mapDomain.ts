@@ -17,6 +17,9 @@ import {
   type LoadedDocument,
 } from "../storage/documentStore.js";
 import {
+  type FileExportOptions,
+} from "./fileExport.js";
+import {
   type PreviewRegion,
 } from "./previewScene.js";
 import {
@@ -44,6 +47,19 @@ export const MAX_CELL_WRITES = 100_000;
 /** Tiles a merge may shift its source by on either axis. */
 export const MAX_MERGE_OFFSET = 1_000_000;
 export const MAX_REGION_CELLS = 20_000;
+/** rules.txt files one automap run may read, includes counted. */
+export const MAX_AUTOMAP_RULES_FILES = 16;
+/** Rule-map references one automap run may execute, after filters. */
+export const MAX_AUTOMAP_RULE_MAPS = 64;
+/** Rules across all rule maps applied by one automap run. */
+export const MAX_AUTOMAP_RULES = 1_024;
+/**
+ * Cell comparisons one automap run may spend matching. This is the inner
+ * loop of `runAutomap` — candidate positions times compiled rule cells —
+ * counted exactly, so pathological rule sets fail fast instead of hanging
+ * the server.
+ */
+export const MAX_AUTOMAP_MATCH_OPERATIONS = 50_000_000;
 export const MAX_LAYER_COUNT = 10_000;
 export const MAX_LAYER_DEPTH = 64;
 export const MAX_TILESET_COUNT = 4_096;
@@ -71,6 +87,12 @@ export const MAX_REMOVE_TILESET_GID_SCANS = 1_000_000;
 export const MAX_CREATE_TILE_LAYER_CELLS = MAX_CELL_WRITES;
 export const MAX_CREATE_MAP_DIMENSION = 100_000;
 export const MAX_CREATE_MAP_TILE_EDGE = 16_384;
+/**
+ * Bound on |skewx|/|skewy| for created oblique maps. Matches the tile-edge
+ * bound: a shear steeper than one full tile edge per cell is outside
+ * anything Tiled's editor produces.
+ */
+export const MAX_CREATE_MAP_SKEW = 16_384;
 export const MAX_LAYER_NAME_LENGTH = MAX_OBJECT_STRING_LENGTH;
 export const MAX_MAP_CLASS_NAME_CODE_POINTS = 1_024;
 export const MAX_REPLACE_TILE_MAPPINGS = 128;
@@ -210,6 +232,7 @@ export interface EditableContext {
     | "orthogonal"
     | "isometric"
     | "staggered"
+    | "oblique"
     | "hexagonal";
   infinite: boolean;
   bindings: TilesetBinding[];
@@ -253,10 +276,17 @@ export interface EditableContextRevisionGuards {
    * Read-only tools opt in to isometric maps explicitly. Tile data and
    * GID semantics are identical to orthogonal storage; only rendering
    * projects differently, so every edit and render path keeps the
-   * default fail-closed gate. Staggered, hexagonal, and oblique maps
-   * stay rejected everywhere.
+   * default fail-closed gate. Staggered and hexagonal maps stay
+   * rejected everywhere.
    */
   allowIsometric?: boolean;
+  /**
+   * Oblique maps (Tiled 1.12+) opt in on the same reasoning as
+   * isometric: storage is byte-identical to orthogonal and only the
+   * screen projection differs — by the skewx/skewy shear — so every
+   * path that admits isometric admits oblique alongside it.
+   */
+  allowOblique?: boolean;
   /**
    * Read-only tools that understand staggered and hexagonal storage
    * opt in explicitly; every edit and render path keeps the default
@@ -437,6 +467,12 @@ export interface CreateMapInput {
   tileWidth: number;
   tileHeight: number;
   backgroundColor?: string;
+  /** Defaults to orthogonal. Oblique additionally accepts skewX/skewY. */
+  orientation?: "orthogonal" | "oblique";
+  /** Oblique only: pixel offset per tile row, written as map `skewx`. */
+  skewX?: number;
+  /** Oblique only: pixel offset per tile column, written as map `skewy`. */
+  skewY?: number;
 }
 
 export interface CreateTilesetInput {
@@ -509,6 +545,7 @@ export type TiledExportRunner = (options: {
   sourcePath: string;
   outputPath: string;
   maxOutputBytes: number;
+  exportOptions?: FileExportOptions;
 }) => Promise<Buffer>;
 
 export interface UpdateWangsetsInput {

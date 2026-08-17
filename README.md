@@ -1,8 +1,8 @@
-# TiledMCP
+# TiledMCP Pro
 
-[![npm](https://img.shields.io/npm/v/tiled-mcp-server)](https://www.npmjs.com/package/tiled-mcp-server)
+[![npm](https://img.shields.io/npm/v/tiled-mcp-pro)](https://www.npmjs.com/package/tiled-mcp-pro)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![node](https://img.shields.io/node/v/tiled-mcp-server)](https://nodejs.org)
+[![node](https://img.shields.io/node/v/tiled-mcp-pro)](https://nodejs.org)
 
 An MCP server for [Tiled](https://www.mapeditor.org) map projects. A model can read,
 edit, generate, render, and validate `.tmj` / `.tsj` assets on disk without opening the
@@ -31,7 +31,7 @@ Claude Code — no path needed; the server sandboxes itself to the project you h
 (via [MCP roots](https://modelcontextprotocol.io/specification/2025-06-18/client/roots)):
 
 ```bash
-claude mcp add tiled -- npx -y tiled-mcp-server
+claude mcp add tiled -- npx -y tiled-mcp-pro
 ```
 
 Claude Desktop or any client without a working directory — pass the project explicitly:
@@ -43,7 +43,7 @@ Claude Desktop or any client without a working directory — pass the project ex
       "command": "npx",
       "args": [
         "-y",
-        "tiled-mcp-server",
+        "tiled-mcp-pro",
         "--project-dir",
         "/absolute/path/to/your/tiled-project"
       ]
@@ -57,7 +57,7 @@ after that it starts from the cache. To poke at the tools by hand instead, use t
 MCP Inspector:
 
 ```bash
-npx @modelcontextprotocol/inspector npx -y tiled-mcp-server --project-dir /absolute/path/to/your/tiled-project
+npx @modelcontextprotocol/inspector npx -y tiled-mcp-pro --project-dir /absolute/path/to/your/tiled-project
 ```
 
 **3. Try it.** Drop a tilesheet PNG into the project folder and ask your assistant to
@@ -115,7 +115,8 @@ registry.
 rooms-and-corridors dungeons, weighted scatter, reference-image import, and multi-layer
 prefab stamping. Same seed, same bytes. No `Math.random` in the codebase.
 
-**Render.** Native PNG output for orthogonal, isometric, staggered, and hexagonal maps;
+**Render.** Native PNG output for orthogonal, isometric, staggered, hexagonal, and
+oblique maps;
 tileset sheets; sparse tile selections; tile-layer previews with grid, coordinate,
 highlight, and object-debug overlays; pixel-level render diff. `tmxrasterizer` handles
 full-fidelity whole-map PNGs when it is installed.
@@ -260,9 +261,11 @@ Regenerate a fixture with `pnpm tsx scripts/generate-floorplan-fixture.ts` or
   edits rewrite only `objects`, plus `nextobjectid` on create. BOM, line endings,
   indentation, key order, and number lexemes survive outside that scope. An array that
   gets replaced does get reformatted.
-- **Projections.** Oblique is rejected everywhere. Staggered and hexagonal support
-  summary, region, usage, select, and render; edits fail closed. Isometric is open for
-  edits and for every procedural planner.
+- **Projections.** Staggered and hexagonal support summary, region, usage, select, and
+  render; edits fail closed. Isometric and oblique (Tiled 1.12+, the skewx/skewy shear)
+  are open for edits and for every procedural planner; oblique also creates via
+  `tiled_create_map` and renders with tmxrasterizer-verified placement. A degenerate
+  oblique shear (`skewx*skewy == tilewidth*tileheight`) fails closed everywhere.
 - **TMX and XML.** Reads never reach an edit planner. Writes create a new file in the
   same directory, no-replace, restricted profile. Enum-annotated members and
   out-of-profile structure fail closed, and class properties need an explicit
@@ -277,9 +280,16 @@ Regenerate a fixture with `pnpm tsx scripts/generate-floorplan-fixture.ts` or
 - **Consistency.** Every multi-file read reports
   `snapshotConsistency: "non-atomic-read-set"`. Read that as a disclosure, not an
   atomicity claim. `locked: true` is advisory metadata and blocks nothing.
-- **Out of scope.** Official AutoMapping (headless `--evaluate` in 1.12.2 proved
-  unworkable; evidence in the spec), any force path that modifies or deletes project
-  assets, and a persistent prefab library with name matching.
+- **AutoMapping.** `tiled_preview_automap` runs Tiled 1.9+ rules (rules.txt or a single
+  rules map) through a native, deterministic port of the 1.12.2 rule engine — seeded
+  randomness, tile-layer outputs only, fail-closed on the rest. Native because headless
+  `--evaluate` cannot reach official AutoMapping in 1.12.2: `tiled.open()` needs the
+  editor and `MapFormat.read()` maps are detached, which `autoMap()` rejects (evidence
+  and source citations in `docs/02-mcp-spec.md` §10; `tests/automapCanary.test.ts`
+  re-probes the installed Tiled and fails the day upstream lifts the restriction, at
+  which point a CLI cross-check becomes possible).
+- **Out of scope.** Any force path that modifies or deletes project assets, and a
+  persistent prefab library with name matching.
 
 Exact schemas and limits come from
 [docs/generated/mcp-reference.md](docs/generated/mcp-reference.md) and

@@ -959,6 +959,7 @@ const coordinateResultOutputSchema = z
           "orthogonal",
           "isometric",
           "staggered",
+          "oblique",
           "hexagonal",
         ]),
         tileWidth: positiveIntegerOutputSchema,
@@ -972,6 +973,8 @@ const coordinateResultOutputSchema = z
           .optional(),
         hexSideLength:
           nonnegativeIntegerOutputSchema.optional(),
+        skewX: integerOutputSchema.optional(),
+        skewY: integerOutputSchema.optional(),
         tileSpace: z.enum([
           "discrete",
           "continuous",
@@ -1021,6 +1024,7 @@ const usageAnalysisSuccessOutputSchema = z
     profile: z.enum([
       "finite-orthogonal-tmj-external-atlas-tsj",
       "isometric-tmj-read-only",
+      "oblique-tmj-read-only",
       "staggered-hexagonal-tmj-read-only",
     ]),
     scope: z

@@ -107,9 +107,46 @@ async function acquire(lockPath: string, record: LockRecord): Promise<void> {
           throw readError;
         }
         if (!isProcessAlive(existing.pid)) {
+          // The holder may have released and exited between our read and
+          // the liveness probe -- judging staleness on the probe alone
+          // turns every clean shutdown into a false STALE_FILE_LOCK when
+          // the scheduler stretches that window, which loaded CI runners
+          // do reliably. Tokens are per-acquire UUIDs, so only the same
+          // record surviving a re-read after the probe proves the holder
+          // died with the lock in place; a vanished or replaced record
+          // means a release raced us, and the next attempt re-evaluates.
+          let confirmed: LockRecord | undefined;
+          try {
+            confirmed = await readLockRecord(
+              lockPath,
+            );
+          } catch (recheckError) {
+            if (
+              isVanishedLockRace(recheckError) &&
+              attempt <
+                LOCK_RELEASE_RACE_RETRIES - 1
+            ) {
+              await yieldEventLoop();
+              continue;
+            }
+            throw recheckError;
+          }
+          if (confirmed.token !== existing.token) {
+            if (
+              attempt <
+              LOCK_RELEASE_RACE_RETRIES - 1
+            ) {
+              await yieldEventLoop();
+              continue;
+            }
+            // Out of attempts with the lock still changing hands: fall
+            // through to the exhausted-race error below rather than
+            // reporting a dead pid as an active holder.
+            break;
+          }
           throw new TiledMcpError(
             "STALE_FILE_LOCK",
-            `A previous TiledMCP process left a stale lock for ${record.target}. Remove the lock after verifying no editor is active.`,
+            `A previous TiledMCP Pro process left a stale lock for ${record.target}. Remove the lock after verifying no editor is active.`,
             {
               path: record.target,
               stalePid: existing.pid,
@@ -119,7 +156,7 @@ async function acquire(lockPath: string, record: LockRecord): Promise<void> {
         }
         throw new TiledMcpError(
           "FILE_LOCKED",
-          `Another TiledMCP process is editing ${record.target}. Retry after it finishes.`,
+          `Another TiledMCP Pro process is editing ${record.target}. Retry after it finishes.`,
           {
             path: record.target,
             ownerPid: existing.pid,

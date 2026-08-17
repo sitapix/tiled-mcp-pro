@@ -80,7 +80,7 @@ describe("roots-deferred boot", () => {
     ).toBe(true);
 
     const earlyTools = await earlyToolsPromise;
-    expect(earlyTools.tools.length).toBe(50);
+    expect(earlyTools.tools.length).toBe(51);
     expect(
       earlyTools.tools.some(
         (tool) => tool.name === "__tiled_mcp_boot__",
@@ -166,6 +166,6 @@ describe("roots-deferred boot", () => {
 
     expect(booted.projectDir).toBe(await realpath(root));
     const tools = await client.listTools();
-    expect(tools.tools.length).toBe(50);
+    expect(tools.tools.length).toBe(51);
   });
 });

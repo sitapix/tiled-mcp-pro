@@ -1,4 +1,4 @@
-# TiledMCP 文件系统威胁模型
+# TiledMCP Pro 文件系统威胁模型
 
 > **状态：Frozen v1（direct filesystem backend）。** 本文冻结的是当前文件系统后端的
 > 信任边界，不代表所有本机攻击面都已被消除。权威机器值由
@@ -16,7 +16,7 @@ server-internal state 明确不在此 scope；它们分别由 checkpoint、asset
 v1 面向一个显式配置的本地项目根目录，并要求：
 
 - 所有合作写者针对同一逻辑目标使用同一个规范化 project-relative POSIX path，并遵守
-  TiledMCP 的锁协议；
+  TiledMCP Pro 的锁协议；
 - 项目位于支持同文件系统原子 `rename`、hard link、文件 `fsync` 和目录 `fsync` 的本地
   文件系统；分布式/网络文件系统语义尚未验证；
 - 项目根及其父目录不会被同权限恶意进程在一次操作中主动替换；
@@ -90,7 +90,7 @@ swap 明确列为 unsupported，而不是声称已由路径规范化解决。
 锁键来自规范化项目路径，不来自 inode。两个不同路径即使是同一个 hardlink inode，也不会
 自动共享一把锁。因此受支持的合作写者模型要求“一个逻辑目标只使用一个规范化项目路径”。
 如果项目故意用多个 hardlink alias 指向同一 TMJ/TSJ，调用方必须在外部统一串行，不能把
-TiledMCP 的路径锁解释成 inode 锁。
+TiledMCP Pro 的路径锁解释成 inode 锁。
 
 stale lock 永远 fail closed。手动删除前必须确认原 PID/写者已不再活动；PID 存活检查不是
 租约，也不会自动判断锁已安全过期。

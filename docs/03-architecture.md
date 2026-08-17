@@ -1,4 +1,4 @@
-# TiledMCP Architecture
+# TiledMCP Pro Architecture
 
 Why the implementation is shaped the way it is: the fidelity, concurrency, and recovery
 constraints it commits to, and the places it refuses to guess.
@@ -490,7 +490,7 @@ the registry's deterministic path hash and matches the id allocated after the fi
 verification is never relaxed for it.
 
 External adapters cannot bypass any of this. Evaluate and export produce staging results that
-TiledMCP validates before they enter a single-file commit or the WAL.
+TiledMCP Pro validates before they enter a single-file commit or the WAL.
 
 ## 13. Content-addressed checkpoints
 

@@ -169,6 +169,7 @@ export function validateAndSummarizeOperations(
     | "orthogonal"
     | "isometric"
     | "staggered"
+    | "oblique"
     | "hexagonal",
   bindings: readonly TilesetBinding[],
   operations: readonly PlannedMapEditOperation[],
@@ -2495,6 +2496,7 @@ function performMapResize(
     | "orthogonal"
     | "isometric"
     | "staggered"
+    | "oblique"
     | "hexagonal",
   bindings: readonly TilesetBinding[],
   views: ResizeLayerViews,

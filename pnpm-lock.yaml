@@ -24,6 +24,9 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
+      '@mapeditor/tiled-api':
+        specifier: ^1.12.0
+        version: 1.12.0
       '@types/node':
         specifier: 26.0.0
         version: 26.0.0
@@ -374,6 +377,9 @@ packages:
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
+
+  '@mapeditor/tiled-api@1.12.0':
+    resolution: {integrity: sha512-QvIrrm5AyGYgF9PqpqmcVfZMQ2Ly3Xp43jKiD09T2lGGehlYDGJkzIgjSV1JH5csPL4CYamS8lL59BVJMDqhVQ==}
 
   '@modelcontextprotocol/sdk@1.30.0':
     resolution: {integrity: sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==}
@@ -1519,6 +1525,8 @@ snapshots:
     optional: true
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
+
+  '@mapeditor/tiled-api@1.12.0': {}
 
   '@modelcontextprotocol/sdk@1.30.0(zod@4.4.3)':
     dependencies:

@@ -30,6 +30,8 @@ function projection(
     staggerAxis: "y",
     staggerIndex: "odd",
     hexSideLength: 0,
+    skewX: 0,
+    skewY: 0,
     ...overrides,
   };
 }

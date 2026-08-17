@@ -1,0 +1,6 @@
+[mcp_servers.tiled]
+command = "npx"
+args = [
+    "-y",
+    "tiled-mcp-server",
+]

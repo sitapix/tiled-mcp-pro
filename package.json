@@ -1,15 +1,15 @@
 {
-  "name": "tiled-mcp-server",
-  "version": "0.0.2",
+  "name": "tiled-mcp-pro",
+  "version": "0.1.0",
   "description": "A safety-first MCP server for inspecting and editing Tiled maps.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sitapix/TiledMCP.git"
+    "url": "git+https://github.com/sitapix/tiled-mcp-pro.git"
   },
-  "homepage": "https://github.com/sitapix/TiledMCP#readme",
+  "homepage": "https://github.com/sitapix/tiled-mcp-pro#readme",
   "bugs": {
-    "url": "https://github.com/sitapix/TiledMCP/issues"
+    "url": "https://github.com/sitapix/tiled-mcp-pro/issues"
   },
   "keywords": [
     "mcp",
@@ -24,7 +24,7 @@
   ],
   "type": "module",
   "bin": {
-    "tiled-mcp-server": "./dist/index.js"
+    "tiled-mcp-pro": "./dist/index.js"
   },
   "files": [
     "dist"
@@ -45,7 +45,7 @@
     "verify:tiled-1.12.2": "tsx scripts/verify-tiled-1.12.2.ts"
   },
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.15.0"
   },
   "packageManager": "pnpm@11.3.0",
   "dependencies": {
@@ -55,6 +55,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@mapeditor/tiled-api": "^1.12.0",
     "@types/node": "26.0.0",
     "tsx": "4.23.1",
     "typescript": "7.0.2",

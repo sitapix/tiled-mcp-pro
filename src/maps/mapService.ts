@@ -46,6 +46,9 @@ import {
   renderIsometricTiles,
 } from "../images/isometricPreview.js";
 import {
+  renderObliqueTiles,
+} from "../images/obliquePreview.js";
+import {
   DEFAULT_NATIVE_PREVIEW_SCALE,
   MAX_NATIVE_PREVIEW_AGGREGATE_DECODED_PIXELS,
   MAX_NATIVE_PREVIEW_AGGREGATE_IMAGE_BYTES,
@@ -133,10 +136,13 @@ import {
 } from "./fileDelete.js";
 import {
   EXPORT_FORMAT_PATTERN,
+  EXPORT_VERSION_PATTERN,
+  type FileExportOptions,
   type FileExportPlan,
   MAX_EXPORT_OUTPUT_BYTES,
   assertFileExportPlan,
   fileExportPlanId,
+  hasFileExportOptions,
 } from "./fileExport.js";
 import {
   type GenerateAlgorithmInput,
@@ -297,7 +303,12 @@ import {
 import {
   DEFAULT_USAGE_TOP_TILE_LIMIT,
   MAX_ABSOLUTE_OBJECT_NUMBER,
+  MAX_AUTOMAP_MATCH_OPERATIONS,
+  MAX_AUTOMAP_RULES,
+  MAX_AUTOMAP_RULES_FILES,
+  MAX_AUTOMAP_RULE_MAPS,
   MAX_CREATE_MAP_DIMENSION,
+  MAX_CREATE_MAP_SKEW,
   MAX_CREATE_MAP_TILE_EDGE,
   MAX_DIAGNOSTICS,
   MAX_OBJECT_LIST_LIMIT,
@@ -307,6 +318,15 @@ import {
   MAX_TOTAL_DEPENDENCY_BYTES,
   MAX_USAGE_TOP_TILE_LIMIT,
 } from "./mapDomain.js";
+import {
+  type AutomapRulesMapModel,
+  type AutomapTargetLayer,
+  type AutomapTilesetSlot,
+  compileAutomapMapNameFilter,
+  parseAutomapRulesMap,
+  readTileMatchTypes,
+  runAutomap,
+} from "./automap.js";
 import type {
   AnalyzeUsageInput,
   CreateMapInput,
@@ -419,9 +439,14 @@ import type { Revision } from "../storage/revision.js";
 export {
   DEFAULT_USAGE_TOP_TILE_LIMIT,
   MAX_ADD_TILESET_GID_SCANS,
+  MAX_AUTOMAP_MATCH_OPERATIONS,
+  MAX_AUTOMAP_RULES,
+  MAX_AUTOMAP_RULES_FILES,
+  MAX_AUTOMAP_RULE_MAPS,
   MAX_CELL_WRITES,
   MAX_MERGE_OFFSET,
   MAX_CREATE_MAP_DIMENSION,
+  MAX_CREATE_MAP_SKEW,
   MAX_CREATE_MAP_TILE_EDGE,
   MAX_CREATE_TILE_LAYER_CELLS,
   MAX_DUPLICATE_LAYER_BYTES,
@@ -494,6 +519,7 @@ export type {
  */
 const TILESET_READ_ORIENTATIONS = {
   allowIsometric: true,
+  allowOblique: true,
   allowStaggeredHexagonal: true,
 } as const;
 
@@ -513,6 +539,7 @@ const TILESET_READ_ORIENTATIONS = {
  */
 const EXTERNAL_TILESET_EDIT_ORIENTATIONS = {
   allowIsometric: true,
+  allowOblique: true,
   allowStaggeredHexagonal: true,
 } as const;
 
@@ -566,6 +593,48 @@ export class MapService {
         "backgroundColor must be #RRGGBB or #AARRGGBB.",
       );
     }
+    const orientation =
+      input.orientation ?? "orthogonal";
+    if (
+      orientation !== "oblique" &&
+      (input.skewX !== undefined ||
+        input.skewY !== undefined)
+    ) {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        "skewX and skewY apply to oblique maps only.",
+        { orientation },
+      );
+    }
+    const skewX = input.skewX ?? 0;
+    const skewY = input.skewY ?? 0;
+    for (const [name, value] of [
+      ["skewX", skewX],
+      ["skewY", skewY],
+    ] as const) {
+      if (
+        !Number.isSafeInteger(value) ||
+        Math.abs(value) > MAX_CREATE_MAP_SKEW
+      ) {
+        throw new TiledMcpError(
+          "INVALID_ARGUMENT",
+          `${name} must be an integer between -${MAX_CREATE_MAP_SKEW} and ${MAX_CREATE_MAP_SKEW}.`,
+          { [name]: value },
+        );
+      }
+    }
+    if (
+      skewX * skewY ===
+      input.tileWidth * input.tileHeight
+    ) {
+      // The renderer's shear inverse collapses at this point; refuse to
+      // create a map assertUsableProjection would reject on first read.
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        "skewX * skewY must not equal tileWidth * tileHeight; that shear is degenerate and has no screen inverse.",
+        { skewX, skewY },
+      );
+    }
 
     const map: JsonObject = {
       compressionlevel: -1,
@@ -574,8 +643,12 @@ export class MapService {
       layers: [],
       nextlayerid: 1,
       nextobjectid: 1,
-      orientation: "orthogonal",
+      orientation,
       renderorder: "right-down",
+      // Tiled omits skewx/skewy when 0, so an unskewed oblique map keeps
+      // the canonical form.
+      ...(skewX !== 0 ? { skewx: skewX } : {}),
+      ...(skewY !== 0 ? { skewy: skewY } : {}),
       tiledversion: "1.12.2",
       tileheight: input.tileHeight,
       tilesets: [],
@@ -587,7 +660,11 @@ export class MapService {
     if (input.backgroundColor !== undefined) {
       map.backgroundcolor = input.backgroundColor;
     }
-    return this.store.create(mapPath, map, "create finite orthogonal TMJ map");
+    return this.store.create(
+      mapPath,
+      map,
+      `create finite ${orientation} TMJ map`,
+    );
   }
 
   async getSummary(mapPath: string): Promise<Record<string, unknown>> {
@@ -604,6 +681,7 @@ export class MapService {
       allowEmbeddedTilesets: true,
       allowStaggeredHexagonal: true,
       allowIsometric: true,
+      allowOblique: true,
     });
     const rootProperties = summarizeMapRootProperties(
       context.loaded.document,
@@ -643,6 +721,30 @@ export class MapService {
                 .hexsidelength,
               `${context.loaded.path}.hexsidelength`,
             ),
+          }
+        : {}),
+      // Tiled omits skewx/skewy when 0; report the effective zero rather
+      // than mirroring the omission, so callers never guess the default.
+      ...(context.orientation === "oblique"
+        ? {
+            skewX:
+              context.loaded.document.skewx ===
+              undefined
+                ? 0
+                : expectInteger(
+                    context.loaded.document
+                      .skewx,
+                    `${context.loaded.path}.skewx`,
+                  ),
+            skewY:
+              context.loaded.document.skewy ===
+              undefined
+                ? 0
+                : expectInteger(
+                    context.loaded.document
+                      .skewy,
+                    `${context.loaded.path}.skewy`,
+                  ),
           }
         : {}),
       infinite: context.infinite,
@@ -689,7 +791,9 @@ export class MapService {
           ? "staggered-hexagonal-tmj-read-only"
           : context.orientation === "isometric"
             ? "isometric-tmj-editable-core"
-            : context.infinite
+            : context.orientation === "oblique"
+              ? "oblique-tmj-editable-core"
+              : context.infinite
             ? "infinite-orthogonal-tmj-read-only-chunked"
             : "finite-orthogonal-tmj-external-atlas-tsj",
     };
@@ -952,6 +1056,7 @@ export class MapService {
       allowInfinite: true,
       allowStaggeredHexagonal: true,
       allowIsometric: true,
+      allowOblique: true,
       ...(input.expectedMapRevision === undefined
         ? {}
         : {
@@ -990,7 +1095,9 @@ export class MapService {
           ? "staggered-hexagonal-tmj-read-only"
           : context.orientation === "isometric"
             ? "isometric-tmj-read-only"
-            : "finite-orthogonal-tmj-external-atlas-tsj",
+            : context.orientation === "oblique"
+              ? "oblique-tmj-read-only"
+              : "finite-orthogonal-tmj-external-atlas-tsj",
       ...projection,
       snapshotConsistency: "non-atomic-read-set",
     };
@@ -3199,6 +3306,7 @@ export class MapService {
       allowEmbeddedTilesets: true,
       allowStaggeredHexagonal: true,
       allowIsometric: true,
+      allowOblique: true,
     });
     const rows: Array<Array<TileRef | null>> = [];
     let layerDescriptor: { id: number; name: string };
@@ -3329,6 +3437,7 @@ export class MapService {
       // everywhere. Staggered and hexagonal stay rejected, which is the
       // documented scope for those two.
       allowIsometric: true,
+      allowOblique: true,
     });
     const locations =
       input.layerId === undefined
@@ -3686,6 +3795,7 @@ export class MapService {
       // Same reasoning as listObjects: reading one object by id does not
       // depend on the map's projection.
       allowIsometric: true,
+      allowOblique: true,
     });
     const location = findObjectLocation(
       buildObjectEditIndex(
@@ -3885,6 +3995,7 @@ export class MapService {
       // isometric maps -- refusing to attach a tileset to one left it
       // readable and paintable but impossible to give new art to.
       allowIsometric: true,
+      allowOblique: true,
       expectedMapRevision: input.expectedMapRevision,
       expectedDependencyRevisions:
         input.expectedDependencyRevisions,
@@ -4616,6 +4727,7 @@ export class MapService {
       {
         allowCollectionTilesets: true,
         allowIsometric: true,
+        allowOblique: true,
         allowStaggeredHexagonal: true,
         allowInfinite: true,
         expectedMapRevision,
@@ -4886,6 +4998,7 @@ export class MapService {
       targetPath: string;
       format?: string;
       expectedSourceRevision?: string;
+      exportOptions?: FileExportOptions;
     },
     runner: TiledExportRunner,
     allowedFormats: {
@@ -4946,6 +5059,36 @@ export class MapService {
         { format, allowed: [...whitelist] },
       );
     }
+    const exportOptions =
+      input.exportOptions !== undefined &&
+      hasFileExportOptions(input.exportOptions)
+        ? input.exportOptions
+        : undefined;
+    if (
+      exportOptions?.embedTilesets &&
+      exportKind !== "map"
+    ) {
+      // Tiled would silently ignore the flag on a tileset export, but the
+      // option would still be baked into the plan id and summary, so the
+      // approval would misdescribe what happens. Fail closed instead.
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        "embedTilesets applies to map exports only.",
+        { exportKind },
+      );
+    }
+    if (
+      exportOptions?.exportVersion !== undefined &&
+      !EXPORT_VERSION_PATTERN.test(
+        exportOptions.exportVersion,
+      )
+    ) {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        "exportVersion must be a dotted Tiled compatibility version such as \"1.8\".",
+        { exportVersion: exportOptions.exportVersion },
+      );
+    }
     const snapshot =
       await this.store.readSnapshot(sourcePath);
     if (
@@ -4973,6 +5116,7 @@ export class MapService {
       format,
       sourcePath,
       snapshot.revision,
+      exportOptions,
     );
     const unsignedPlan: Omit<
       FileExportPlan,
@@ -4986,12 +5130,18 @@ export class MapService {
       targetPath,
       exportKind,
       format,
+      ...(exportOptions === undefined
+        ? {}
+        : { exportOptions }),
       baseRevision: revisionOf(content),
       summary: {
         sourcePath,
         targetPath,
         exportKind,
         format,
+        ...(exportOptions === undefined
+          ? {}
+          : { exportOptions }),
         contentBytes: content.byteLength,
         wouldChange: true,
       },
@@ -5998,6 +6148,7 @@ export class MapService {
         input.mapPath,
         {
           allowIsometric: true,
+          allowOblique: true,
           expectedMapRevision:
             input.expectedMapRevision,
           expectedDependencyRevisions:
@@ -6170,6 +6321,7 @@ export class MapService {
     const context =
       await this.loadEditableContext(mapPath, {
         allowIsometric: true,
+        allowOblique: true,
         allowStaggeredHexagonal: true,
       });
     return values.map((value) => {
@@ -6604,6 +6756,7 @@ export class MapService {
         input.mapPath,
         {
           allowIsometric: true,
+          allowOblique: true,
           allowStaggeredHexagonal: true,
         },
       );
@@ -7586,6 +7739,396 @@ export class MapService {
   }
 
   /**
+   * Renders one bounded oblique region through the native compositor.
+   * Mirrors renderHexagonal's shape deliberately: same region and layer
+   * discipline, same budgets, with the projection block reporting the
+   * shear instead of the stagger. Full-map renders are pixel-comparable
+   * with tmxrasterizer output for the same document.
+   */
+  async renderOblique(input: {
+    mapPath: string;
+    region: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
+    layerIds?: number[] | undefined;
+    scale?: number | undefined;
+  }): Promise<{
+    png: Buffer;
+    result: Record<string, unknown>;
+  }> {
+    const scale = input.scale ?? 1;
+    if (
+      !Number.isSafeInteger(scale) ||
+      scale < 1 ||
+      scale > MAX_ISOMETRIC_RENDER_SCALE
+    ) {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        `scale must be an integer between 1 and ${MAX_ISOMETRIC_RENDER_SCALE}.`,
+        { scale },
+      );
+    }
+    const region = input.region;
+    if (
+      !Number.isSafeInteger(region.x) ||
+      !Number.isSafeInteger(region.y) ||
+      region.x < 0 ||
+      region.y < 0 ||
+      region.width < 1 ||
+      region.height < 1 ||
+      region.width * region.height >
+        MAX_ISOMETRIC_REGION_CELLS
+    ) {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        `region must use non-negative integer coordinates, positive dimensions, and at most ${MAX_ISOMETRIC_REGION_CELLS} cells.`,
+        { limit: MAX_ISOMETRIC_REGION_CELLS },
+      );
+    }
+    const context =
+      await this.loadEditableContext(
+        input.mapPath,
+        { allowOblique: true },
+      );
+    if (context.orientation !== "oblique") {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        "tiled_render_preview renders oblique maps only when the map itself uses that projection.",
+        { orientation: context.orientation },
+      );
+    }
+    if (
+      region.x + region.width > context.width ||
+      region.y + region.height > context.height
+    ) {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        `region must lie inside the ${context.width}x${context.height} map.`,
+        {
+          mapWidth: context.width,
+          mapHeight: context.height,
+        },
+      );
+    }
+    const map = context.loaded.document;
+    const mapPath = context.loaded.path;
+    const tileWidth = expectInteger(
+      map.tilewidth,
+      `${mapPath}.tilewidth`,
+    );
+    const tileHeight = expectInteger(
+      map.tileheight,
+      `${mapPath}.tileheight`,
+    );
+    const skewX =
+      map.skewx === undefined
+        ? 0
+        : expectInteger(
+            map.skewx,
+            `${mapPath}.skewx`,
+          );
+    const skewY =
+      map.skewy === undefined
+        ? 0
+        : expectInteger(
+            map.skewy,
+            `${mapPath}.skewy`,
+          );
+    // Unsheared images from different rows overlap once skewY is
+    // non-zero, so paint order shows; the compositor implements
+    // right-down only.
+    const renderOrder =
+      map.renderorder === undefined
+        ? "right-down"
+        : map.renderorder;
+    if (renderOrder !== "right-down") {
+      throw new TiledMcpError(
+        "UNSUPPORTED_RENDER_FEATURE",
+        `${mapPath} declares renderorder ${String(renderOrder)}; the oblique render profile paints right-down only.`,
+        {
+          feature: "oblique-render-order",
+        },
+      );
+    }
+
+    const requestedLayerIds =
+      input.layerIds === undefined
+        ? undefined
+        : new Set(input.layerIds);
+    const renderLayers: IsometricRenderLayer[] =
+      [];
+    const renderedLayerSummaries: Array<{
+      id: number;
+      name: string;
+      nameTruncated?: true;
+    }> = [];
+    const omittedObjectLayerIds: number[] = [];
+    const topLayers = expectArray(
+      map.layers,
+      `${mapPath}.layers`,
+    );
+    const seenLayerIds = new Set<number>();
+    for (const [
+      index,
+      entry,
+    ] of topLayers.entries()) {
+      const layer = expectObject(
+        entry,
+        `${mapPath}.layers[${index}]`,
+      );
+      const layerId = expectInteger(
+        layer.id,
+        `${mapPath}.layers[${index}].id`,
+      );
+      seenLayerIds.add(layerId);
+      if (layer.type === "objectgroup") {
+        omittedObjectLayerIds.push(layerId);
+        continue;
+      }
+      if (layer.type !== "tilelayer") {
+        throw new TiledMcpError(
+          "UNSUPPORTED_RENDER_FEATURE",
+          `${mapPath}.layers[${index}] has type ${String(layer.type)}, which is outside the oblique render profile.`,
+          {
+            feature: "oblique-layer-type",
+            layerId,
+          },
+        );
+      }
+      if (
+        requestedLayerIds === undefined
+          ? layer.visible === false
+          : !requestedLayerIds.has(layerId)
+      ) {
+        continue;
+      }
+      const view = findTileLayer(
+        map,
+        layerId,
+        mapPath,
+        "read",
+      );
+      assertRegionInsideLayer(
+        view,
+        region.x,
+        region.y,
+        region.width,
+        region.height,
+      );
+      const gids: number[] = [];
+      for (
+        let y = region.y;
+        y < region.y + region.height;
+        y += 1
+      ) {
+        for (
+          let x = region.x;
+          x < region.x + region.width;
+          x += 1
+        ) {
+          gids.push(readLayerGid(view, x, y));
+        }
+      }
+      const opacity =
+        layer.opacity === undefined
+          ? 1
+          : layer.opacity;
+      if (
+        typeof opacity !== "number" ||
+        !(opacity >= 0) ||
+        !(opacity <= 1)
+      ) {
+        throw new TiledMcpError(
+          "INVALID_DOCUMENT",
+          `${mapPath}.layers[${index}].opacity must be in [0, 1].`,
+        );
+      }
+      renderLayers.push({
+        id: layerId,
+        name: view.name,
+        opacity,
+        gids,
+      });
+      renderedLayerSummaries.push({
+        id: layerId,
+        name: view.name.slice(0, 128),
+        ...(view.name.length > 128
+          ? { nameTruncated: true as const }
+          : {}),
+      });
+    }
+    if (requestedLayerIds !== undefined) {
+      for (const layerId of requestedLayerIds) {
+        if (!seenLayerIds.has(layerId)) {
+          throw new TiledMcpError(
+            "LAYER_NOT_FOUND",
+            `Layer ${layerId} does not exist at the top level of ${mapPath}.`,
+            { layerId },
+          );
+        }
+      }
+    }
+    if (renderLayers.length === 0) {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        "No tile layers were selected for the render.",
+      );
+    }
+
+    const usedBindings = new Map<
+      string,
+      TilesetBinding
+    >();
+    for (const layer of renderLayers) {
+      for (const gid of layer.gids) {
+        if (gid === 0) {
+          continue;
+        }
+        const decoded = decodeGid(
+          gid,
+          "oblique",
+        );
+        const binding = context.bindings.find(
+          (candidate) =>
+            decoded.baseGid >=
+              candidate.firstGid &&
+            decoded.baseGid <
+              candidate.firstGid +
+                candidate.gidSpan,
+        );
+        if (binding === undefined) {
+          throw new TiledMcpError(
+            "GID_OUT_OF_RANGE",
+            `GID ${decoded.baseGid} does not fall inside any tileset range of ${mapPath}.`,
+            { gid: decoded.baseGid },
+          );
+        }
+        if (binding.collection === true) {
+          throw new TiledMcpError(
+            "UNSUPPORTED_RENDER_FEATURE",
+            "Image-collection tilesets are outside the oblique render profile.",
+            {
+              feature: "oblique-collection",
+              assetId: binding.assetId,
+            },
+          );
+        }
+        usedBindings.set(
+          binding.assetId,
+          binding,
+        );
+      }
+    }
+
+    const atlases: NativePreviewAtlas[] = [];
+    let remainingImageBytes =
+      MAX_NATIVE_PREVIEW_AGGREGATE_IMAGE_BYTES;
+    let remainingDecodedPixels =
+      MAX_NATIVE_PREVIEW_AGGREGATE_DECODED_PIXELS;
+    const sources: Array<
+      Record<string, unknown>
+    > = [];
+    for (const binding of usedBindings.values()) {
+      const loaded = await this.loadPreviewAtlas(
+        binding,
+        tileWidth,
+        tileHeight,
+        remainingImageBytes,
+        remainingDecodedPixels,
+      );
+      if (loaded.transparentColor !== undefined) {
+        throw new TiledMcpError(
+          "UNSUPPORTED_RENDER_FEATURE",
+          "Transparent-color keyed tilesets are outside the oblique render profile.",
+          {
+            feature:
+              "oblique-transparent-color",
+            assetId: binding.assetId,
+          },
+        );
+      }
+      remainingImageBytes -=
+        loaded.image.bytes.byteLength;
+      remainingDecodedPixels -=
+        loaded.geometry.imageWidth *
+        loaded.geometry.imageHeight;
+      atlases.push({
+        assetId: binding.assetId,
+        firstGid: binding.firstGid,
+        tileCount: binding.tileCount,
+        rgba: loaded.decoded.rgba,
+        format: loaded.decoded.format,
+        geometry: loaded.geometry,
+      });
+      sources.push({
+        tileset: {
+          assetId: binding.assetId,
+          path: binding.path,
+          revision: binding.revision,
+        },
+        image: {
+          path: loaded.image.path,
+          revision: loaded.image.revision,
+        },
+      });
+    }
+
+    const rendered = renderObliqueTiles({
+      tileWidth,
+      tileHeight,
+      skewX,
+      skewY,
+      region,
+      layers: renderLayers,
+      atlases,
+      scale,
+    });
+    const png = await encodeRgbaPng({
+      rgba: rendered.rgba,
+      width: rendered.width,
+      height: rendered.height,
+    });
+    return {
+      png,
+      result: {
+        mimeType: "image/png",
+        pixelSize: {
+          width: rendered.width,
+          height: rendered.height,
+        },
+        byteLength: png.byteLength,
+        sha256: revisionOf(png),
+        map: {
+          path: mapPath,
+          revision: context.loaded.revision,
+        },
+        dependencyRevisions:
+          context.dependencyRevisions,
+        region,
+        scale,
+        projection: {
+          orientation: "oblique",
+          tileWidth,
+          tileHeight,
+          skewX,
+          skewY,
+          originPixel: rendered.originPixel,
+        },
+        layers: renderedLayerSummaries,
+        omittedObjectLayerIds,
+        sources,
+        renderProfile:
+          "oblique-tile-layers-v1",
+        snapshotConsistency:
+          "non-atomic-read-set",
+      },
+    };
+  }
+
+  /**
    * Renders the same bounded region of two maps through the native
    * preview and compares them pixel by pixel. Differing pixels paint
    * solid red over a faded copy of the first render; matching pixels
@@ -7820,6 +8363,7 @@ export class MapService {
       {
         allowCollectionTilesets: true,
         allowIsometric: true,
+        allowOblique: true,
       },
     );
     const layer = findTileLayer(
@@ -7996,6 +8540,7 @@ export class MapService {
       orientation !== "orthogonal" &&
       orientation !== "isometric" &&
       orientation !== "staggered" &&
+      orientation !== "oblique" &&
       orientation !== "hexagonal"
     ) {
       throw new TiledMcpError(
@@ -8062,6 +8607,23 @@ export class MapService {
               `${loaded.path}.hexsidelength`,
             )
           : 0,
+      // Tiled omits skewx/skewy when 0, so absence is a plain zero shear.
+      skewX:
+        orientation === "oblique" &&
+        map.skewx !== undefined
+          ? expectInteger(
+              map.skewx,
+              `${loaded.path}.skewx`,
+            )
+          : 0,
+      skewY:
+        orientation === "oblique" &&
+        map.skewy !== undefined
+          ? expectInteger(
+              map.skewy,
+              `${loaded.path}.skewy`,
+            )
+          : 0,
     };
     assertUsableProjection(
       projection,
@@ -8090,13 +8652,23 @@ export class MapService {
                 projection.hexSideLength,
             }
           : {}),
+        ...(orientation === "oblique"
+          ? {
+              skewX: projection.skewX,
+              skewY: projection.skewY,
+            }
+          : {}),
         tileSpace: tileSpaceIsDiscrete(
           projection.orientation,
         )
           ? "discrete"
           : "continuous",
+        // Isometric projects pixels onto the diamond; oblique shears them.
+        // Either way object x/y is not a screen position.
         pixelSpace:
-          projection.orientation === "isometric"
+          projection.orientation ===
+            "isometric" ||
+          projection.orientation === "oblique"
             ? "distinct-from-screen"
             : "same-as-screen",
       },
@@ -8330,6 +8902,7 @@ export class MapService {
       input.mapPath,
       {
         allowIsometric: true,
+        allowOblique: true,
         expectedMapRevision:
           input.expectedMapRevision,
         expectedDependencyRevisions:
@@ -8449,6 +9022,7 @@ export class MapService {
       input.mapPath,
       {
         allowIsometric: true,
+        allowOblique: true,
         expectedMapRevision:
           input.expectedMapRevision,
         expectedDependencyRevisions:
@@ -8536,6 +9110,7 @@ export class MapService {
         input.mapPath,
         {
           allowIsometric: true,
+          allowOblique: true,
           expectedMapRevision:
             input.expectedMapRevision,
           expectedDependencyRevisions:
@@ -8769,7 +9344,7 @@ export class MapService {
     const sourceContext =
       await this.loadEditableContext(
         sourceMapPath,
-        { allowIsometric: true },
+        { allowIsometric: true, allowOblique: true },
       );
     if (
       input.expectedSourceRevision !==
@@ -8953,6 +9528,7 @@ export class MapService {
             targetMapPath,
             {
               allowIsometric: true,
+              allowOblique: true,
               expectedMapRevision:
                 input.expectedMapRevision,
               expectedDependencyRevisions:
@@ -9215,6 +9791,7 @@ export class MapService {
       input.mapPath,
       {
         allowIsometric: true,
+        allowOblique: true,
         expectedMapRevision:
           input.expectedMapRevision,
         expectedDependencyRevisions:
@@ -9488,6 +10065,7 @@ export class MapService {
         // staging map behaves identically to orthogonal — wang
         // adjacency is orientation-independent.
         allowIsometric: true,
+        allowOblique: true,
         expectedMapRevision:
           input.expectedMapRevision,
         expectedDependencyRevisions:
@@ -9831,6 +10409,7 @@ export class MapService {
             plan.format,
             plan.sourcePath,
             plan.sourceRevision,
+            plan.exportOptions,
           );
     if (revisionOf(content) !== plan.baseRevision) {
       throw new TiledMcpError(
@@ -9880,6 +10459,7 @@ export class MapService {
     format: string,
     sourcePath: string,
     expectedSourceRevision: string,
+    exportOptions?: FileExportOptions,
   ): Promise<Buffer> {
     const absoluteSource =
       await this.resolver.resolveExisting(
@@ -9898,6 +10478,9 @@ export class MapService {
           `out.${format}`,
         ),
         maxOutputBytes: MAX_EXPORT_OUTPUT_BYTES,
+        ...(exportOptions === undefined
+          ? {}
+          : { exportOptions }),
       });
       await assertRevisionUnchanged(
         this.store,
@@ -10855,6 +11438,7 @@ export class MapService {
       input.mapPath,
       {
         allowIsometric: true,
+        allowOblique: true,
         expectedMapRevision:
           input.expectedMapRevision,
         expectedDependencyRevisions:
@@ -11251,6 +11835,593 @@ export class MapService {
     };
   }
 
+  /**
+   * Native AutoMapping: reads a rules.txt chain or a single TMJ rules map,
+   * runs the deterministic port of Tiled 1.12.2's rule engine in
+   * `automap.ts` against the pinned target map, and turns the exact cell
+   * diff into an ordinary setTiles map-edit change set — so apply needs no
+   * new machinery and untouched fragments keep their exact bytes.
+   *
+   * Delegating to Tiled itself is impossible headlessly (see
+   * `tests/automapCanary.test.ts`), so unlike terrain painting there is no
+   * CLI parity path; the engine's fidelity rests on the port being written
+   * against the 1.12.2 sources and on its own fixture suite.
+   */
+  async planAutomap(input: {
+    mapPath: string;
+    rulesPath?: string | undefined;
+    seed?: number | undefined;
+    expectedMapRevision: string;
+    expectedDependencyRevisions: Record<
+      string,
+      string
+    >;
+  }): Promise<MapEditPlan> {
+    assertRequiredRevision(
+      input.expectedMapRevision,
+      "expectedMapRevision",
+    );
+    const seed = input.seed ?? 0;
+    assertSafeInteger(seed, "seed");
+
+    const context = await this.loadEditableContext(
+      input.mapPath,
+      {
+        // Automapping matches and writes the abstract cell grid, which is
+        // orientation-independent; the rules map must share the target's
+        // orientation, which the loader below enforces.
+        allowIsometric: true,
+        expectedMapRevision:
+          input.expectedMapRevision,
+        expectedDependencyRevisions:
+          input.expectedDependencyRevisions,
+      },
+    );
+    assertDependencyRevisions(
+      input.expectedDependencyRevisions,
+      context.dependencyRevisions,
+    );
+
+    const rulesPath =
+      input.rulesPath === undefined
+        ? this.resolver.normalize(
+            posix.join(
+              posix.dirname(context.loaded.path),
+              "rules.txt",
+            ),
+          )
+        : this.resolver.normalize(input.rulesPath);
+
+    // Gather rule-map references, walking rules.txt includes the way
+    // `AutomappingManager::loadRulesFile` does: a `[filter]` line applies to
+    // the lines after it, propagates into includes, and changes inside an
+    // include are scoped to that include.
+    interface RuleMapReference {
+      path: string;
+      filter: RegExp | null;
+    }
+    const references: RuleMapReference[] = [];
+    const parsingStack = new Set<string>();
+    let rulesFileCount = 0;
+    const loadRulesFile = async (
+      path: string,
+      inheritedFilter: RegExp | null,
+    ): Promise<void> => {
+      if (parsingStack.has(path)) {
+        throw new TiledMcpError(
+          "INVALID_ARGUMENT",
+          `${path} includes itself, directly or through another rules file.`,
+          { path },
+        );
+      }
+      rulesFileCount += 1;
+      if (
+        rulesFileCount > MAX_AUTOMAP_RULES_FILES
+      ) {
+        throw new TiledMcpError(
+          "RESULT_LIMIT_EXCEEDED",
+          `Automapping read more than ${MAX_AUTOMAP_RULES_FILES} rules files.`,
+          { limit: MAX_AUTOMAP_RULES_FILES },
+        );
+      }
+      parsingStack.add(path);
+      try {
+        const snapshot =
+          await this.store.readSnapshot(path);
+        let filter = inheritedFilter;
+        for (const rawLine of snapshot.source
+          .toString("utf8")
+          .split(/\r?\n/u)) {
+          const line = rawLine.trim();
+          if (
+            line === "" ||
+            line.startsWith("#") ||
+            line.startsWith("//")
+          ) {
+            continue;
+          }
+          if (
+            line.startsWith("[") &&
+            line.endsWith("]")
+          ) {
+            filter = compileAutomapMapNameFilter(
+              line.slice(1, -1),
+              path,
+            );
+            continue;
+          }
+          const resolved =
+            await this.resolver.resolveReference(
+              path,
+              line,
+            );
+          if (/\.txt$/iu.test(resolved)) {
+            await loadRulesFile(resolved, filter);
+            continue;
+          }
+          references.push({
+            path: resolved,
+            filter,
+          });
+        }
+      } finally {
+        parsingStack.delete(path);
+      }
+    };
+    if (/\.txt$/iu.test(rulesPath)) {
+      await loadRulesFile(rulesPath, null);
+    } else {
+      references.push({
+        path: rulesPath,
+        filter: null,
+      });
+    }
+
+    const mapFileName = posix.basename(
+      context.loaded.path,
+    );
+    const applicable = references.filter(
+      (reference) =>
+        reference.filter === null ||
+        reference.filter.test(mapFileName),
+    );
+    if (applicable.length === 0) {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        references.length === 0
+          ? `${rulesPath} lists no rule maps.`
+          : `No rule map in ${rulesPath} applies to ${mapFileName}; every entry is behind a non-matching [map name filter].`,
+        {
+          rulesPath,
+          referenceCount: references.length,
+        },
+      );
+    }
+    if (
+      applicable.length > MAX_AUTOMAP_RULE_MAPS
+    ) {
+      throw new TiledMcpError(
+        "RESULT_LIMIT_EXCEEDED",
+        `Automapping would run ${applicable.length} rule maps, over the ${MAX_AUTOMAP_RULE_MAPS} limit.`,
+        {
+          limit: MAX_AUTOMAP_RULE_MAPS,
+          actual: applicable.length,
+        },
+      );
+    }
+
+    const modelCache = new Map<
+      string,
+      AutomapRulesMapModel
+    >();
+    const models: AutomapRulesMapModel[] = [];
+    for (const reference of applicable) {
+      let model = modelCache.get(reference.path);
+      if (model === undefined) {
+        model = await this.loadAutomapRulesMap(
+          reference.path,
+          context,
+        );
+        modelCache.set(reference.path, model);
+      }
+      models.push(model);
+    }
+
+    // Every layer name any rules map reads or writes. Output layers must
+    // already exist — Tiled would create them, but a plan that invents
+    // layers cannot be expressed as setTiles, and creating them is its own
+    // operation with its own placement decisions.
+    const neededNames = new Set<string>();
+    const outputNames = new Set<string>();
+    for (const model of models) {
+      for (const name of model.inputLayerNames) {
+        neededNames.add(name);
+      }
+      for (const name of model.outputTileLayerNames) {
+        neededNames.add(name);
+        outputNames.add(name);
+      }
+    }
+    const targetTileLayers = new Map<
+      string,
+      { id: number; locked: boolean }
+    >();
+    const walkTargets = (
+      layers: JsonValue[],
+      layerContext: string,
+    ): void => {
+      for (const [
+        index,
+        rawLayer,
+      ] of layers.entries()) {
+        const layer = expectObject(
+          rawLayer,
+          `${layerContext}[${index}]`,
+        );
+        if (layer.type === "tilelayer") {
+          const name = layer.name;
+          if (
+            typeof name === "string" &&
+            !targetTileLayers.has(name)
+          ) {
+            targetTileLayers.set(name, {
+              id: expectInteger(
+                layer.id,
+                `${layerContext}[${index}].id`,
+              ),
+              locked: layer.locked === true,
+            });
+          }
+        }
+        if (Array.isArray(layer.layers)) {
+          walkTargets(
+            layer.layers,
+            `${layerContext}[${index}].layers`,
+          );
+        }
+      }
+    };
+    walkTargets(
+      expectArray(
+        context.loaded.document.layers,
+        `${context.loaded.path}.layers`,
+      ),
+      `${context.loaded.path}.layers`,
+    );
+    for (const name of outputNames) {
+      if (!targetTileLayers.has(name)) {
+        throw new TiledMcpError(
+          "LAYER_NOT_FOUND",
+          `${context.loaded.path} has no tile layer named ${JSON.stringify(name)} for the rules to write into. Create it with tiled_create_layer first; automapping never invents layers, so the result cannot depend on the order layers happen to be created in.`,
+          {
+            mapPath: context.loaded.path,
+            layerName: name,
+          },
+        );
+      }
+    }
+
+    const width = context.width;
+    const height = context.height;
+    const validatedGids = new Set<number>();
+    const layerStates = new Map<
+      string,
+      AutomapTargetLayer & { layerId: number }
+    >();
+    for (const name of neededNames) {
+      const located = targetTileLayers.get(name);
+      if (located === undefined) {
+        continue;
+      }
+      const view = findTileLayer(
+        context.loaded.document,
+        located.id,
+        context.loaded.path,
+        "read",
+      );
+      const original = new Uint32Array(
+        width * height,
+      );
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const gid = readLayerGid(view, x, y);
+          if (
+            gid !== 0 &&
+            !validatedGids.has(gid)
+          ) {
+            gidToTileRef(
+              gid,
+              context.orientation,
+              context.bindings,
+            );
+            validatedGids.add(gid);
+          }
+          original[y * width + x] = gid;
+        }
+      }
+      layerStates.set(name, {
+        name,
+        locked: located.locked,
+        original,
+        working: new Uint32Array(original),
+        layerId: located.id,
+      });
+    }
+
+    runAutomap({
+      width,
+      height,
+      layers: layerStates,
+      rulesMaps: models,
+      seed,
+      budget: {
+        maxRules: MAX_AUTOMAP_RULES,
+        maxMatchOperations:
+          MAX_AUTOMAP_MATCH_OPERATIONS,
+      },
+    });
+
+    const operations: MapEditOperation[] = [];
+    let changedCellCount = 0;
+    for (const state of layerStates.values()) {
+      const cells: Array<{
+        x: number;
+        y: number;
+        tile: TileRef | null;
+      }> = [];
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const index = y * width + x;
+          const after = state.working[
+            index
+          ] as number;
+          if (
+            after ===
+            (state.original[index] as number)
+          ) {
+            continue;
+          }
+          cells.push({
+            x,
+            y,
+            tile:
+              after === 0
+                ? null
+                : gidToTileRef(
+                    after,
+                    context.orientation,
+                    context.bindings,
+                  ),
+          });
+        }
+      }
+      if (cells.length === 0) {
+        continue;
+      }
+      changedCellCount += cells.length;
+      operations.push({
+        type: "setTiles",
+        layerId: state.layerId,
+        cells,
+      });
+    }
+    if (operations.length === 0) {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        "The automap produced no cell changes; the map already satisfies the rules.",
+        {
+          mapPath: context.loaded.path,
+          rulesPath,
+        },
+      );
+    }
+    if (changedCellCount > MAX_CELL_WRITES) {
+      throw new TiledMcpError(
+        "RESULT_LIMIT_EXCEEDED",
+        `Automapping writes ${changedCellCount} cells, over the ${MAX_CELL_WRITES} limit for one change set.`,
+        {
+          limit: MAX_CELL_WRITES,
+          actual: changedCellCount,
+        },
+      );
+    }
+
+    return this.planEdits(
+      input.mapPath,
+      input.expectedMapRevision,
+      input.expectedDependencyRevisions,
+      operations,
+    );
+  }
+
+  /**
+   * Reads one TMJ rules map and resolves its tileset slots into the model
+   * `automap.ts` consumes. MatchType-special tiles need no target binding;
+   * regular tiles from tilesets the target does not reference fail closed
+   * inside the parser, where the offending cell can be named.
+   */
+  private async loadAutomapRulesMap(
+    rulesMapPath: string,
+    context: EditableContext,
+  ): Promise<AutomapRulesMapModel> {
+    if (!/\.tmj$/iu.test(rulesMapPath)) {
+      throw new TiledMcpError(
+        "UNSUPPORTED_FORMAT",
+        `${rulesMapPath} is not a TMJ map; rules maps must be TMJ. Save a .tmx rules map as .tmj in Tiled first.`,
+        { path: rulesMapPath },
+      );
+    }
+    if (rulesMapPath === context.loaded.path) {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        "A map cannot be its own rules map.",
+        { path: rulesMapPath },
+      );
+    }
+    const source = this.store.parseSnapshot(
+      await this.store.readSnapshot(rulesMapPath),
+    );
+    const document = source.document;
+    if (document.type !== "map") {
+      throw new TiledMcpError(
+        "INVALID_DOCUMENT",
+        `${rulesMapPath} is not a Tiled map.`,
+        { path: rulesMapPath },
+      );
+    }
+    const orientation = expectString(
+      document.orientation,
+      `${rulesMapPath}.orientation`,
+    );
+    if (orientation !== context.orientation) {
+      throw new TiledMcpError(
+        "UNSUPPORTED_MAP_PROFILE",
+        `${rulesMapPath} is ${orientation} but ${context.loaded.path} is ${context.orientation}; a rules map must share the target's orientation.`,
+        {
+          rulesOrientation: orientation,
+          targetOrientation: context.orientation,
+        },
+      );
+    }
+    for (const member of [
+      "tilewidth",
+      "tileheight",
+    ] as const) {
+      const rulesValue = expectInteger(
+        document[member],
+        `${rulesMapPath}.${member}`,
+      );
+      const targetValue = expectInteger(
+        context.loaded.document[member],
+        `${context.loaded.path}.${member}`,
+      );
+      if (rulesValue !== targetValue) {
+        throw new TiledMcpError(
+          "UNSUPPORTED_MAP_PROFILE",
+          `${rulesMapPath} has ${member} ${rulesValue} but ${context.loaded.path} has ${targetValue}; the grids do not line up.`,
+          {
+            member,
+            rulesValue,
+            targetValue,
+          },
+        );
+      }
+    }
+    if (document.infinite === true) {
+      throw new TiledMcpError(
+        "UNSUPPORTED_MAP_PROFILE",
+        `${rulesMapPath} is infinite; rules maps must be finite.`,
+        { path: rulesMapPath },
+      );
+    }
+
+    const slots: AutomapTilesetSlot[] = [];
+    for (const [index, rawEntry] of expectArray(
+      document.tilesets,
+      `${rulesMapPath}.tilesets`,
+    ).entries()) {
+      const entry = expectObject(
+        rawEntry,
+        `${rulesMapPath}.tilesets[${index}]`,
+      );
+      const firstGid = expectInteger(
+        entry.firstgid,
+        `${rulesMapPath}.tilesets[${index}].firstgid`,
+      );
+      if (typeof entry.source === "string") {
+        const resolved =
+          await this.resolver.resolveReference(
+            rulesMapPath,
+            entry.source,
+          );
+        if (!/\.tsj$/iu.test(resolved)) {
+          throw new TiledMcpError(
+            "UNSUPPORTED_FORMAT",
+            `${rulesMapPath}.tilesets[${index}] references ${resolved}; rules maps may reference only TSJ tilesets.`,
+            {
+              path: rulesMapPath,
+              tilesetPath: resolved,
+            },
+          );
+        }
+        const binding = context.bindings.find(
+          (candidate) =>
+            candidate.path === resolved,
+        );
+        const tileset =
+          await this.store.read(resolved);
+        if (
+          binding !== undefined &&
+          tileset.revision !== binding.revision
+        ) {
+          throw new TiledMcpError(
+            "DEPENDENCY_REVISION_CONFLICT",
+            `${resolved} changed while the automap was being prepared.`,
+            {
+              assetId: binding.assetId,
+              expectedRevision: binding.revision,
+              actualRevision: tileset.revision,
+            },
+          );
+        }
+        slots.push({
+          firstGid,
+          targetFirstGid:
+            binding === undefined
+              ? null
+              : binding.firstGid,
+          tileCount:
+            binding === undefined
+              ? expectInteger(
+                  tileset.document.tilecount,
+                  `${resolved}.tilecount`,
+                )
+              : binding.tileCount,
+          matchTypes: readTileMatchTypes(
+            tileset.document.tiles,
+            resolved,
+          ),
+          label: resolved,
+          embedded: false,
+        });
+        continue;
+      }
+      const name =
+        typeof entry.name === "string"
+          ? entry.name
+          : `tilesets[${index}]`;
+      slots.push({
+        firstGid,
+        targetFirstGid: null,
+        tileCount: expectInteger(
+          entry.tilecount,
+          `${rulesMapPath}.tilesets[${index}].tilecount`,
+        ),
+        matchTypes: readTileMatchTypes(
+          entry.tiles,
+          `${rulesMapPath}.tilesets[${index}]`,
+        ),
+        label: name,
+        embedded: true,
+      });
+    }
+
+    return parseAutomapRulesMap({
+      document,
+      rulesMapPath,
+      slots,
+      orientation: context.orientation,
+      tileWidth: expectInteger(
+        document.tilewidth,
+        `${rulesMapPath}.tilewidth`,
+      ),
+      tileHeight: expectInteger(
+        document.tileheight,
+        `${rulesMapPath}.tileheight`,
+      ),
+    });
+  }
+
   async planCreateLayer(
     input: PlanCreateLayerInput,
   ): Promise<MapEditPlan> {
@@ -11267,6 +12438,7 @@ export class MapService {
       // layer is allocated at the map's own dimensions filled with GID zero.
       // Nothing there reads the projection.
       allowIsometric: true,
+      allowOblique: true,
       expectedMapRevision: input.expectedMapRevision,
       expectedDependencyRevisions:
         input.expectedDependencyRevisions,
@@ -11362,6 +12534,7 @@ export class MapService {
       // orientation-independent, so isometric maps take the same edit
       // path as orthogonal ones.
       allowIsometric: true,
+      allowOblique: true,
       expectedMapRevision: expectedRevision,
       expectedDependencyRevisions,
     });
@@ -11439,6 +12612,7 @@ export class MapService {
     const context = await this.loadEditableContext(plan.mapPath, {
       allowInfinite: true,
       allowIsometric: true,
+      allowOblique: true,
       expectedMapRevision: plan.baseRevision,
       expectedDependencyRevisions: plan.dependencyRevisions,
       persistIdentity: true,
@@ -12088,6 +13262,10 @@ export class MapService {
         revisionGuards.allowIsometric === true
       ) &&
       !(
+        orientation === "oblique" &&
+        revisionGuards.allowOblique === true
+      ) &&
+      !(
         (orientation === "staggered" ||
           orientation === "hexagonal") &&
         revisionGuards
@@ -12096,8 +13274,9 @@ export class MapService {
     ) {
       throw new TiledMcpError(
         "UNSUPPORTED_MAP_PROFILE",
-        orientation === "isometric"
-          ? `${loaded.path} is isometric; this tool supports orthogonal maps only. Isometric maps stay readable everywhere and editable through tiled_preview_edits plus tiled_apply_change_set.`
+        orientation === "isometric" ||
+        orientation === "oblique"
+          ? `${loaded.path} is ${orientation}; this tool supports orthogonal maps only. ${orientation === "isometric" ? "Isometric" : "Oblique"} maps stay readable everywhere and editable through tiled_preview_edits plus tiled_apply_change_set.`
           : orientation === "staggered" ||
               orientation === "hexagonal"
             ? `${loaded.path} is ${orientation}; this tool supports orthogonal maps only. Staggered and hexagonal maps are read-only, via tiled_get_map_summary, tiled_get_region, and tiled_analyze_usage.`

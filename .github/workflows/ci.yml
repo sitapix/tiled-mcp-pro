@@ -1,0 +1,46 @@
+# CI: the `pnpm verify` gate (typecheck + build + contract:check + vitest).
+#
+# Efficiency notes, so future edits keep them intact:
+# - Triggers are PRs plus pushes to main only. Feature-branch pushes are
+#   covered by their PR run; triggering on both would double every run.
+# - `concurrency` cancels superseded PR runs (a force-push mid-run otherwise
+#   burns a full suite); main runs are never cancelled so every merge keeps
+#   a complete record.
+# - The pnpm store is cached against pnpm-lock.yaml via setup-node.
+# - The matrix is exactly the documented support surface from `engines`:
+#   the Node 22 floor line and current LTS. The floor is 22.15 because
+#   src/maps/tileData.ts needs node:zlib's zstd functions (added v22.15.0),
+#   which the first floor-leg run proved by failing on Node 20 — and pnpm 11
+#   itself needs Node >= 22.13. Do not add legs without a documented
+#   commitment.
+# - Tests that cross-check against a real Tiled install skip themselves in
+#   CI (`hasTiledCli` is false); `verify:tiled-1.12.2` runs only on
+#   machines that have Tiled, by hand.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm verify

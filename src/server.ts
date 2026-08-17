@@ -93,9 +93,14 @@ import {
 import {
   DEFAULT_USAGE_TOP_TILE_LIMIT,
   MAX_ADD_TILESET_GID_SCANS,
+  MAX_AUTOMAP_MATCH_OPERATIONS,
+  MAX_AUTOMAP_RULES,
+  MAX_AUTOMAP_RULES_FILES,
+  MAX_AUTOMAP_RULE_MAPS,
   MAX_CELL_WRITES,
   MAX_MERGE_OFFSET,
   MAX_CREATE_MAP_DIMENSION,
+  MAX_CREATE_MAP_SKEW,
   MAX_CREATE_MAP_TILE_EDGE,
   MAX_CREATE_TILE_LAYER_CELLS,
   MAX_DUPLICATE_LAYER_BYTES,
@@ -382,7 +387,7 @@ type TrustedToolResult = CallToolResult & {
 const trustedToolResults =
   new WeakSet<CallToolResult>();
 const INTERNAL_ERROR_MESSAGE =
-  "Internal TiledMCP error." as const;
+  "Internal TiledMCP Pro error." as const;
 const INTERNAL_ERROR_DETAILS = Object.freeze({});
 const INTERNAL_ERROR_RESULT = Object.freeze({
   ok: false,
@@ -1860,6 +1865,7 @@ export const TILED_MCP_CORE_TOOL_NAMES =
     "tiled_preview_world_edits",
     "tiled_preview_transaction",
     "tiled_preview_terrain",
+    "tiled_preview_automap",
     "tiled_apply_change_set",
   ] as const);
 export const TILED_MCP_OPTIONAL_TOOL_NAMES =
@@ -2139,7 +2145,11 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
           subscriptions: false,
           listChanged: true,
         },
-        editProfiles: ["finite-orthogonal-tmj-external-atlas-tsj"],
+        editProfiles: [
+          "finite-orthogonal-tmj-external-atlas-tsj",
+          "isometric-tmj-editable-core",
+          "oblique-tmj-editable-core",
+        ],
         mapOperations: ["updateMap", "resizeMap"],
         mapResizeCapabilities: {
           offsetUnit: "tiles",
@@ -2734,6 +2744,11 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
         mapCreationCapabilities: {
           profile:
             "finite-orthogonal-empty-tmj",
+          orientations: [
+            "orthogonal",
+            "oblique",
+          ],
+          maxSkewMagnitude: MAX_CREATE_MAP_SKEW,
           mapFormatVersion: "1.10",
           tiledCompatibilityBaseline:
             "1.12.2",
@@ -3092,6 +3107,27 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
             "project-local-revision-pinned-safe-image",
           writeTarget: "map-only",
         },
+        automapCapabilities: {
+          engine:
+            "native-port-of-tiled-1.12.2-automapper",
+          cliParity:
+            "impossible-headless-see-automap-canary",
+          ruleFormat: "tiled-1.9-plus-tmj-only",
+          determinism:
+            "seed-and-coordinate-hash-not-tiled-rng",
+          matchTypeResolution:
+            "direct-tile-property-no-class-inheritance",
+          unsupported: [
+            "legacy-regions-layers",
+            "object-layer-outputs",
+            "output-layer-property-copying",
+            "output-layer-autocreation",
+            "tmx-tsx-rules-sources",
+            "infinite-targets",
+          ],
+          unknownRulesMapProperties:
+            "rejected-not-warned",
+        },
         nativePreviewCapabilities: {
           renderProfile:
             "finite-orthogonal-static-atlas-tilelayers-v1",
@@ -3099,6 +3135,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
             "orthogonal",
             "isometric",
             "staggered",
+            "oblique",
             "hexagonal",
           ],
           supportedFormats: ["png", "jpeg", "webp", "simple-svg"],
@@ -3233,6 +3270,13 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
             MAX_CREATE_MAP_TILE_EDGE,
           maxRegionCells: 20_000,
           maxChangeSetCellWrites: MAX_CELL_WRITES,
+          maxAutomapRulesFiles:
+            MAX_AUTOMAP_RULES_FILES,
+          maxAutomapRuleMaps:
+            MAX_AUTOMAP_RULE_MAPS,
+          maxAutomapRules: MAX_AUTOMAP_RULES,
+          maxAutomapMatchOperations:
+            MAX_AUTOMAP_MATCH_OPERATIONS,
           maxPendingChangeSetCellWrites: DEFAULT_MAX_PENDING_CELL_WRITES,
           maxPendingObjectShapePoints:
             DEFAULT_MAX_PENDING_OBJECT_SHAPE_POINTS,
@@ -3567,7 +3611,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
     registeredTools,
     "tiled_get_capabilities",
     {
-      title: "Inspect TiledMCP capabilities",
+      title: "Inspect TiledMCP Pro capabilities",
       description:
         "Returns the implemented edit profile, frozen direct-filesystem threat model and operational requirements, and locally available Tiled command-line adapters.",
       inputSchema: z.object({}).strict(),
@@ -4430,12 +4474,19 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
                     layerIds,
                     scale,
                   })
-                : await maps.renderHexagonal({
-                    mapPath,
-                    region,
-                    layerIds,
-                    scale,
-                  });
+                : orientation === "oblique"
+                  ? await maps.renderOblique({
+                      mapPath,
+                      region,
+                      layerIds,
+                      scale,
+                    })
+                  : await maps.renderHexagonal({
+                      mapPath,
+                      region,
+                      layerIds,
+                      scale,
+                    });
             return imageToolResult(
               projected.result,
               projected.png,
@@ -4811,9 +4862,9 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
     registeredTools,
     "tiled_create_map",
     {
-      title: "Create a finite orthogonal TMJ map",
+      title: "Create a finite TMJ map",
       description:
-        "Directly creates a new empty TMJ as the sole additive no-preview mutation exception. The caller must confirm the target path; parent directories must exist, and any existing destination—including identical bytes—is never overwritten or treated as success.",
+        "Directly creates a new empty TMJ as the sole additive no-preview mutation exception. The caller must confirm the target path; parent directories must exist, and any existing destination—including identical bytes—is never overwritten or treated as success. orientation defaults to orthogonal; oblique (Tiled 1.12+) additionally accepts integer skewX/skewY — the pixel shear per tile row and column, written as the map's skewx/skewy members and omitted when 0 to match Tiled's canonical form. A degenerate shear (skewX * skewY equal to tileWidth * tileHeight) fails closed because it has no screen inverse.",
       inputSchema: z
         .object({
           mapPath: projectPathSchema,
@@ -4841,6 +4892,21 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
             .string()
             .regex(/^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/u)
             .optional(),
+          orientation: z
+            .enum(["orthogonal", "oblique"])
+            .optional(),
+          skewX: z
+            .number()
+            .int()
+            .min(-MAX_CREATE_MAP_SKEW)
+            .max(MAX_CREATE_MAP_SKEW)
+            .optional(),
+          skewY: z
+            .number()
+            .int()
+            .min(-MAX_CREATE_MAP_SKEW)
+            .max(MAX_CREATE_MAP_SKEW)
+            .optional(),
         })
         .strict(),
       outputSchema: toolOutputSchema(
@@ -4854,7 +4920,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
         openWorldHint: false,
       },
     },
-    async ({ mapPath, width, height, tileWidth, tileHeight, backgroundColor }) =>
+    async ({ mapPath, width, height, tileWidth, tileHeight, backgroundColor, orientation, skewX, skewY }) =>
       executeTool(() =>
         maps.createMap({
           mapPath,
@@ -4863,6 +4929,9 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
           tileWidth,
           tileHeight,
           ...(backgroundColor === undefined ? {} : { backgroundColor }),
+          ...(orientation === undefined ? {} : { orientation }),
+          ...(skewX === undefined ? {} : { skewX }),
+          ...(skewY === undefined ? {} : { skewY }),
         }),
       ),
   );
@@ -7151,7 +7220,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
       {
         title: "Preview a Tiled CLI export",
         description:
-          "Runs the local Tiled CLI's own --export-map/--export-tileset conversion from one project .tmj/.tsj source into a server-owned staging file and returns an expiring fileExport change set carrying the approved output's content hash. The format comes from the probed export-format whitelist (explicit or via the target extension); the target must be a new project file (exports never overwrite), the source is revision-pinned, and apply re-runs the export and fails closed unless the output bytes exactly match the approved hash.",
+          "Runs the local Tiled CLI's own --export-map/--export-tileset conversion from one project .tmj/.tsj source into a server-owned staging file and returns an expiring fileExport change set carrying the approved output's content hash. The format comes from the probed export-format whitelist (explicit or via the target extension); the target must be a new project file (exports never overwrite), the source is revision-pinned, and apply re-runs the export and fails closed unless the output bytes exactly match the approved hash. Optional switches pass through to the exporter and are baked into the plan digest so apply replays them exactly: embedTilesets inlines external tilesets (map sources only; fails closed on tilesets), detachTemplates expands template instances, resolveTypesAndProperties resolves class/enum property types into concrete values for engines that do not read .tiled-project files, minimize omits insignificant whitespace, and exportVersion pins Tiled's output compatibility version (for example \"1.8\").",
         inputSchema: z
           .object({
             sourcePath: projectPathSchema,
@@ -7162,6 +7231,22 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
               .optional(),
             expectedSourceRevision:
               revisionSchema.optional(),
+            embedTilesets: z
+              .literal(true)
+              .optional(),
+            detachTemplates: z
+              .literal(true)
+              .optional(),
+            resolveTypesAndProperties: z
+              .literal(true)
+              .optional(),
+            minimize: z.literal(true).optional(),
+            exportVersion: z
+              .string()
+              .regex(
+                /^\d{1,2}\.\d{1,3}(\.\d{1,3})?$/u,
+              )
+              .optional(),
           })
           .strict(),
         outputSchema:
@@ -7173,8 +7258,31 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
         targetPath,
         format,
         expectedSourceRevision,
+        embedTilesets,
+        detachTemplates,
+        resolveTypesAndProperties,
+        minimize,
+        exportVersion,
       }) =>
         executeTool(async () => {
+          const exportOptions = {
+            ...(embedTilesets === undefined
+              ? {}
+              : { embedTilesets }),
+            ...(detachTemplates === undefined
+              ? {}
+              : { detachTemplates }),
+            ...(resolveTypesAndProperties ===
+            undefined
+              ? {}
+              : { resolveTypesAndProperties }),
+            ...(minimize === undefined
+              ? {}
+              : { minimize }),
+            ...(exportVersion === undefined
+              ? {}
+              : { exportVersion }),
+          };
           const plan = await maps.planExportFile(
             {
               sourcePath,
@@ -7186,6 +7294,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
               undefined
                 ? {}
                 : { expectedSourceRevision }),
+              exportOptions,
             },
             (options) =>
               cli.exportAsset(options),
@@ -7283,6 +7392,69 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
               expectedDependencyRevisions,
             },
           );
+          return changeSets.put(plan);
+        }),
+    );
+
+  // AutoMapping is core, not CLI-gated: the rule engine is a native port of
+  // Tiled 1.12.2's automapper. Unlike terrain there is no CLI parity path —
+  // headless Tiled cannot automap at all (tests/automapCanary.test.ts keeps
+  // that fact executable), which is why the engine exists.
+  toolRegistrars["tiled_preview_automap"] = () =>
+    register(
+      server,
+      registeredTools,
+      "tiled_preview_automap",
+      {
+        title:
+          "Preview applying AutoMapping rules",
+        description:
+          "Runs Tiled-style AutoMapping over the whole map with a native, deterministic port of Tiled 1.12.2's rule engine — a core tool needing no Tiled install — and returns an ordinary mapEdit change set carrying one setTiles operation per changed output layer, so untouched fragments keep their exact bytes and every preview, revision-pin, and transaction rule applies unchanged. rulesPath names a rules.txt (with includes, comments, and [map name filter] lines) or a single rules map, defaulting to rules.txt beside the map; rules maps must be finite TMJ in the Tiled 1.9+ format, sharing the target's orientation and tile size, and every input_/inputnot_/output_ layer convention, MatchType special tile (Empty, Ignore, NonEmpty, Other, Negate), map option (DeleteTiles, MatchOutsideMap, OverflowBorder, WrapBorder, MatchInOrder, ModX/ModY/OffsetX/OffsetY, Probability, Disabled, IgnoreLock, NoOverlappingOutput), AutoEmpty/StrictEmpty and Ignore*Flip layer properties, output-index randomness, and rule_options rectangles is honored. Where Tiled draws randomness from the system, this hashes the seed input with the match coordinates, so the same seed always yields the same plan. Fails closed on pre-1.9 regions_* rules maps, object-layer outputs, output layers carrying custom properties, output layers missing from the target (create them with tiled_create_layer), tilesets the target does not reference (attach with tiled_add_tileset_to_map), and unknown rules-map properties that Tiled would merely warn about. A run that changes nothing fails closed.",
+        inputSchema: z
+          .object({
+            mapPath: projectPathSchema,
+            rulesPath: projectPathSchema
+              .optional()
+              .describe(
+                "A rules.txt or a single TMJ rules map. Defaults to rules.txt next to the map.",
+              ),
+            seed: z
+              .number()
+              .int()
+              .min(Number.MIN_SAFE_INTEGER)
+              .max(Number.MAX_SAFE_INTEGER)
+              .optional()
+              .describe(
+                "Determinism seed for rule Probability and output-index choices. Defaults to 0.",
+              ),
+            expectedMapRevision: revisionSchema,
+            expectedDependencyRevisions:
+              dependencyRevisionsSchema,
+          })
+          .strict(),
+        outputSchema:
+          previewSetTilesSequenceToolOutputSchema,
+        annotations: PREVIEW_ONLY,
+      },
+      async ({
+        mapPath,
+        rulesPath,
+        seed,
+        expectedMapRevision,
+        expectedDependencyRevisions,
+      }) =>
+        executeTool(async () => {
+          const plan = await maps.planAutomap({
+            mapPath,
+            ...(rulesPath === undefined
+              ? {}
+              : { rulesPath }),
+            ...(seed === undefined
+              ? {}
+              : { seed }),
+            expectedMapRevision,
+            expectedDependencyRevisions,
+          });
           return changeSets.put(plan);
         }),
     );

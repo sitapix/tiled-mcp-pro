@@ -59,6 +59,7 @@ import {
   assertFileExportPlan,
   FILE_EXPORT_WARNING,
   NATIVE_TMX_WARNING,
+  type FileExportOptions,
   type FileExportPlan,
 } from "./maps/fileExport.js";
 import {
@@ -1286,6 +1287,7 @@ type OperationPreview =
       targetPath: string;
       exportKind: "map" | "tileset" | "template";
       format: string;
+      exportOptions?: FileExportOptions;
       contentBytes: number;
     }
   | {
@@ -2623,6 +2625,12 @@ function toPreview(entry: ChangeSetEntry): ChangeSetPreview {
           targetPath: plan.targetPath,
           exportKind: plan.exportKind,
           format: plan.format,
+          ...(plan.exportOptions === undefined
+            ? {}
+            : {
+                exportOptions:
+                  plan.exportOptions,
+              }),
           contentBytes:
             plan.summary.contentBytes,
         },

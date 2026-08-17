@@ -12,6 +12,9 @@ import {
 } from "../errorRegistry.js";
 import { decodeSafeImageRgba } from "../images/safeImage.js";
 import {
+  type FileExportOptions,
+} from "../maps/fileExport.js";
+import {
   MAX_RASTER_PNG_BYTES,
   MAX_RASTER_RENDER_EDGE,
   MAX_RENDERER_VERSION_LENGTH,
@@ -161,7 +164,16 @@ export class TiledCliAdapter {
       LANG: "C",
       LC_ALL: "C",
     };
-    if (!this.environment.QT_QPA_PLATFORM) {
+    // Default to Qt's offscreen platform so exports work without a display —
+    // except on macOS, where the official Tiled.app bundles only the cocoa
+    // plugin and forcing offscreen aborts every invocation with "no Qt
+    // platform plugin could be initialized". Cocoa itself runs fine for CLI
+    // work in a normal login session, so on darwin the variable stays unset
+    // unless the caller provides one.
+    if (
+      !this.environment.QT_QPA_PLATFORM &&
+      process.platform !== "darwin"
+    ) {
       this.environment.QT_QPA_PLATFORM = "offscreen";
     }
   }
@@ -306,13 +318,39 @@ export class TiledCliAdapter {
     outputPath: string;
     maxOutputBytes: number;
     timeoutMs?: number;
+    exportOptions?: FileExportOptions;
   }): Promise<Buffer> {
     requirePath(options.sourcePath, "sourcePath");
     requirePath(options.outputPath, "outputPath");
+    // Option flags precede the export switch; a fixed emission order
+    // keeps the invocation deterministic for identical plans.
+    const optionArgs: string[] = [];
+    const exportOptions = options.exportOptions;
+    if (exportOptions?.embedTilesets) {
+      optionArgs.push("--embed-tilesets");
+    }
+    if (exportOptions?.detachTemplates) {
+      optionArgs.push("--detach-templates");
+    }
+    if (exportOptions?.resolveTypesAndProperties) {
+      optionArgs.push(
+        "--resolve-types-and-properties",
+      );
+    }
+    if (exportOptions?.minimize) {
+      optionArgs.push("--minimize");
+    }
+    if (exportOptions?.exportVersion !== undefined) {
+      optionArgs.push(
+        "--export-version",
+        exportOptions.exportVersion,
+      );
+    }
     await this.run(
       "tiled",
       this.tiledCliPath,
       [
+        ...optionArgs,
         options.kind === "map"
           ? "--export-map"
           : "--export-tileset",

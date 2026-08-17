@@ -12,9 +12,9 @@ export const GUIDE_SECTION_TEMPLATE_URI =
 export const GUIDE_RESOURCE_MIME_TYPE = "text/markdown";
 export const MAX_GUIDE_RESOURCE_BYTES = 128 * 1024;
 
-const GUIDE_SOURCE_TEXT = `# TiledMCP safe editing guide
+const GUIDE_SOURCE_TEXT = `# TiledMCP Pro safe editing guide
 
-TiledMCP inspects and edits Tiled project files under one configured project
+TiledMCP Pro inspects and edits Tiled project files under one configured project
 root. Treat every path as a project-relative POSIX path. Absolute paths and
 \`..\` traversal are rejected.
 
@@ -61,9 +61,10 @@ approve, apply cycle and the revision pinning described later in this guide.
 6. **Run the walls.** When the tileset defines a Wang set, paint corners with
    \`tiled_preview_terrain\` so junctions pick the right tile automatically:
    corners address the corner grid, \`x\` in \`[0, width]\` and \`y\` in
-   \`[0, height]\`, with 1-based colour indexes. Without a Wang set, place walls
-   explicitly with \`tiled_preview_shape\` (rectangle outline for a room, line
-   for a run) or a \`fillRegion\` operation.
+   \`[0, height]\`, with 1-based colour indexes. When the project ships
+   AutoMapping rules instead, run them with \`tiled_preview_automap\`. Without
+   either, place walls explicitly with \`tiled_preview_shape\` (rectangle
+   outline for a room, line for a run) or a \`fillRegion\` operation.
 7. **Place the sprites.** \`createObject\` operations through
    \`tiled_preview_edits\`, \`tiled_preview_template\` for a saved template, or
    \`tiled_preview_prefab\` to stamp a region that already exists elsewhere.
@@ -192,7 +193,7 @@ and render path keep rejecting collection tilesets. Inspect
 ## Filesystem threat model
 
 The direct filesystem backend protects existing-target commits against
-writers that use the same normalized project path and honor the TiledMCP lock.
+writers that use the same normalized project path and honor the TiledMCP Pro lock.
 This contract covers project-asset JSON document targets and explicitly
 excludes server-internal \`.tiledmcp\` state.
 It detects different external bytes visible before the final SHA-256 check,
@@ -270,14 +271,14 @@ covers external TSJ files only, and a successful inline result reports
 
 Root-atlas, per-tile, and image-layer references are normalized and deduplicated
 as one input image set: at most 64 images, 64 MiB of source bytes, 16,000,000
-decoded pixels, and 8192 pixels on either edge of any image. TiledMCP reads a
+decoded pixels, and 8192 pixels on either edge of any image. TiledMCP Pro reads a
 coherent single-file snapshot of every image before and after the render, then
 compares the complete internal path/revision set. Those image revisions are
 deliberately omitted from the public result; \`dependencyRevisions\` remains
 external-TSJ-only.
 
 The rasterizer result is deliberately
-\`snapshotConsistency:"non-atomic-read-set"\`. TiledMCP also rechecks the map
+\`snapshotConsistency:"non-atomic-read-set"\`. TiledMCP Pro also rechecks the map
 and external TSJ revisions before and after the external render, but
 \`tmxrasterizer\` reads live files. Per-file pre/post equality cannot rule out
 an intervening ABA change and does not create an atomic read set. Do not treat
@@ -629,10 +630,14 @@ into a server-owned staging file — the CLI never touches the project
 directly. The format must appear in the probed export-format whitelist
 (pass it explicitly or let the target extension imply it), the target
 must be a new project file (exports never overwrite), and the source is
-revision-pinned. The returned \`fileExport\` change set's
-\`expectedRevision\` is the SHA-256 of the approved output bytes; apply
-re-runs the export under the same source pin and fails closed unless the
-bytes match exactly, then commits via no-replace creation.
+revision-pinned. Optional switches pass straight through to Tiled's
+exporter — \`embedTilesets\` (map sources only), \`detachTemplates\`,
+\`resolveTypesAndProperties\`, \`minimize\`, and \`exportVersion\` — and
+are baked into the plan digest and echoed in the summary, so what was
+approved is exactly what replays. The returned \`fileExport\` change
+set's \`expectedRevision\` is the SHA-256 of the approved output bytes;
+apply re-runs the export under the same source pin and fails closed
+unless the bytes match exactly, then commits via no-replace creation.
 
 ## Place template instances
 
@@ -669,6 +674,25 @@ behave identically on isometric staging maps, since wang adjacency is
 orientation-independent. Staggered and hexagonal maps are
 summary/region/usage read-only (stagger members disclosed, hex flip
 bits decoded as rotate60/rotate120); edits and renders fail closed.
+
+## Oblique maps
+
+Oblique orientation (Tiled 1.12+) is ObliqueRenderer =
+OrthogonalRenderer plus a shear: the map's integer \`skewx\`/\`skewy\`
+members offset each row and column by that many pixels, and tile
+images themselves stay axis-aligned. Storage is byte-identical to
+orthogonal, so oblique maps are editable exactly like isometric ones
+(\`editableProfile: "oblique-tmj-editable-core"\`), \`tiled_create_map\`
+accepts \`orientation: "oblique"\` with optional \`skewX\`/\`skewY\`,
+and the summary reports the effective skew (0 when the members are
+omitted). \`tiled_render_preview\` composites oblique regions with the
+verified anchor formula — cell (x, y) draws bottom-left anchored at
+\`(x*tileWidth + skewX*(y+1), (y+1)*tileHeight + skewY*x)\` on a
+canvas sized by the sheared region corners, matching tmxrasterizer
+pixel for pixel on full-map renders. Right-down render order only;
+anti-diagonal flips and the shared strict-profile exclusions fail
+closed. A degenerate shear (\`skewx*skewy == tilewidth*tileheight\`)
+fails closed everywhere: it has no screen inverse.
 
 ## Render staggered and hexagonal maps
 
@@ -835,7 +859,7 @@ either.
 
 Tiled has three coordinate spaces, and they coincide only for
 orthogonal maps. \`tiled_convert_coordinates\` applies the official
-1.12.2 renderer transforms between them for all four orientations, so
+1.12.2 renderer transforms between them for all five orientations, so
 placement never has to be derived by hand:
 
 - **tile** — cell indices, fractional except where noted below.
@@ -855,9 +879,11 @@ unreliable, and the result declares each one:
   is not at screen \`(0,0)\`.
 - Isometric **pixel** coordinates divide *both* axes by
   \`tileHeight\`, which is why object positions there do not scale
-  with \`tileWidth\`. The result reports
-  \`projection.pixelSpace: "distinct-from-screen"\` for isometric maps
-  and \`"same-as-screen"\` for every other orientation.
+  with \`tileWidth\`. Oblique pixel coordinates are the orthogonal
+  grid; the skew shear applies only between pixel and screen. The
+  result reports \`projection.pixelSpace: "distinct-from-screen"\` for
+  isometric and oblique maps and \`"same-as-screen"\` for every other
+  orientation.
 - Hexagonal and staggered maps snap to the nearest of four hexagon
   centres, so their tile space is discrete: there is no sub-cell
   remainder and \`cell\` equals \`output\`. The result reports
@@ -981,6 +1007,53 @@ given editor session produced. And where no tile in the set matches a
 required pattern, the paint fails closed naming the cell and the
 pattern, rather than approximating with a near-match — add the missing
 Wang tile instead.
+
+## Apply AutoMapping rules
+
+\`tiled_preview_automap\` runs Tiled-style AutoMapping over the whole
+map: rules maps describe input patterns and the output tiles to place
+where they match, so walls grow shadows, paths acquire edges, and
+terrain transitions resolve themselves in one call. It is a core tool —
+the engine is a native, deterministic port of Tiled 1.12.2's rule
+engine, needed because headless Tiled cannot automap at all. The result
+is an ordinary \`mapEdit\` change set with one \`setTiles\` operation per
+changed output layer, so untouched bytes stay untouched and every
+revision-pin and transaction rule applies unchanged. A run that changes
+nothing fails closed.
+
+\`rulesPath\` names either a rules.txt — with \`#\`/\`//\` comments,
+nested .txt includes, and \`[map name filter]\` lines applying to the
+entries after them — or a single rules map, and defaults to
+\`rules.txt\` next to the map. Rules maps must be finite TMJ in the
+Tiled 1.9+ format, sharing the target's orientation and tile size. The
+full tile-layer rule vocabulary is honored: \`input_\`/\`inputnot_\`/
+\`output_\` layers with index suffixes, the MatchType special tiles
+(Empty, Ignore, NonEmpty, Other, Negate), \`AutoEmpty\`/\`StrictEmpty\`
+and \`Ignore*Flip\` layer properties, the map options (\`DeleteTiles\`,
+\`MatchOutsideMap\`, \`OverflowBorder\`, \`WrapBorder\`, \`MatchInOrder\`,
+\`ModX\`/\`ModY\`/\`OffsetX\`/\`OffsetY\`, \`Probability\`, \`Disabled\`,
+\`IgnoreLock\`, \`NoOverlappingOutput\`), weighted random output indexes,
+and \`rule_options\` rectangles.
+
+Randomness is seeded: where Tiled draws rule-\`Probability\` skips and
+output-index choices from the system RNG, this hashes the \`seed\`
+input with the match coordinates, so the same seed always reproduces
+the same plan — rerun with another seed for another variation. The
+probability semantics are unchanged; only the entropy source is.
+
+It fails closed on the constructs the port would otherwise have to
+guess at: pre-1.9 \`regions_*\` rules maps, object-layer outputs,
+output layers carrying custom properties (Tiled copies those onto the
+target), output layers the target lacks (create them with
+\`tiled_create_layer\` first — automapping never invents layers),
+regular tiles from tilesets the target does not reference (attach them
+with \`tiled_add_tileset_to_map\`), TMX/TSX rules sources (save as
+TMJ/TSJ), and infinite targets. Where Tiled would log a warning and
+silently ignore something — an unknown property, an unrecognized layer
+name — this errors instead: a silently dropped \`outpt_Ground\` typo is
+exactly the failure the warnings exist to catch, and no warning channel
+reaches you. Prefix a rules-map layer's name with \`//\` to comment it
+out deliberately.
 
 ## Edit Wang terrain sets
 
@@ -1885,7 +1958,7 @@ not supported.
   reduce; an operator must explicitly prune that backlog. A generic force
   path remains unsupported.
 - On validation failure, inspect diagnostics before proposing another change.
-- Do not mutate files outside TiledMCP while relying on a previously observed
+- Do not mutate files outside TiledMCP Pro while relying on a previously observed
   revision. Revisions are SHA-256 identities of the exact bytes that were read.
 
 ## Creating a map
@@ -2101,7 +2174,7 @@ export const GUIDE_RESOURCE_REVISION = revisionOf(guideBytes);
 
 if (GUIDE_RESOURCE_SIZE > MAX_GUIDE_RESOURCE_BYTES) {
   throw new Error(
-    `The embedded TiledMCP guide is ${GUIDE_RESOURCE_SIZE} bytes; limit is ${MAX_GUIDE_RESOURCE_BYTES}.`,
+    `The embedded TiledMCP Pro guide is ${GUIDE_RESOURCE_SIZE} bytes; limit is ${MAX_GUIDE_RESOURCE_BYTES}.`,
   );
 }
 
@@ -2116,7 +2189,7 @@ export function registerGuideResource(server: McpServer): void {
     "guide",
     GUIDE_RESOURCE_URI,
     {
-      title: "TiledMCP safe editing guide",
+      title: "TiledMCP Pro safe editing guide",
       description:
         "The full per-tool reference for inspecting, previewing, approving, applying, and verifying safe Tiled map edits. It is large; read one section at a time via tiled://guide/{section} (the Contents block lists the slugs).",
       mimeType: GUIDE_RESOURCE_MIME_TYPE,
@@ -2144,7 +2217,7 @@ export function registerGuideResource(server: McpServer): void {
       list: undefined,
     }),
     {
-      title: "One section of the TiledMCP safe editing guide",
+      title: "One section of the TiledMCP Pro safe editing guide",
       description:
         "A single ## section of tiled://guide, addressed by its slug from the guide's Contents block (for example tiled://guide/conflict-and-failure-handling).",
       mimeType: GUIDE_RESOURCE_MIME_TYPE,
