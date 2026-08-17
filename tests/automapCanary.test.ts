@@ -5,6 +5,9 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  AUTOMAP_CANARY_SCRIPT,
+} from "./support/automapCanaryScript.js";
+import {
   TILED_CLI_ENV,
   TILED_CLI_PATH,
   hasTiledCli,
@@ -98,24 +101,6 @@ function mapDocument(
   };
 }
 
-const CANARY_SCRIPT = `
-const args = tiled.scriptArguments;
-try {
-  tiled.open(args[0]);
-  tiled.log("CANARY_OPEN_OK");
-} catch (error) {
-  tiled.log("CANARY_OPEN_ERR: " + error);
-}
-try {
-  const format = tiled.mapFormat("json");
-  const map = format.read(args[0]);
-  map.autoMap(args[1]);
-  tiled.log("CANARY_AUTOMAP_OK");
-} catch (error) {
-  tiled.log("CANARY_AUTOMAP_ERR: " + error);
-}
-`;
-
 describe("headless AutoMapping canary", () => {
   let root = "";
 
@@ -155,7 +140,7 @@ describe("headless AutoMapping canary", () => {
     );
     await writeFile(
       join(root, "canary.js"),
-      CANARY_SCRIPT,
+      AUTOMAP_CANARY_SCRIPT,
     );
   });
 
