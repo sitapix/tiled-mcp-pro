@@ -7151,7 +7151,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
       {
         title: "Preview a Tiled CLI export",
         description:
-          "Runs the local Tiled CLI's own --export-map/--export-tileset conversion from one project .tmj/.tsj source into a server-owned staging file and returns an expiring fileExport change set carrying the approved output's content hash. The format comes from the probed export-format whitelist (explicit or via the target extension); the target must be a new project file (exports never overwrite), the source is revision-pinned, and apply re-runs the export and fails closed unless the output bytes exactly match the approved hash.",
+          "Runs the local Tiled CLI's own --export-map/--export-tileset conversion from one project .tmj/.tsj source into a server-owned staging file and returns an expiring fileExport change set carrying the approved output's content hash. The format comes from the probed export-format whitelist (explicit or via the target extension); the target must be a new project file (exports never overwrite), the source is revision-pinned, and apply re-runs the export and fails closed unless the output bytes exactly match the approved hash. Optional switches pass through to the exporter and are baked into the plan digest so apply replays them exactly: embedTilesets inlines external tilesets (map sources only; fails closed on tilesets), detachTemplates expands template instances, resolveTypesAndProperties resolves class/enum property types into concrete values for engines that do not read .tiled-project files, minimize omits insignificant whitespace, and exportVersion pins Tiled's output compatibility version (for example \"1.8\").",
         inputSchema: z
           .object({
             sourcePath: projectPathSchema,
@@ -7162,6 +7162,22 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
               .optional(),
             expectedSourceRevision:
               revisionSchema.optional(),
+            embedTilesets: z
+              .literal(true)
+              .optional(),
+            detachTemplates: z
+              .literal(true)
+              .optional(),
+            resolveTypesAndProperties: z
+              .literal(true)
+              .optional(),
+            minimize: z.literal(true).optional(),
+            exportVersion: z
+              .string()
+              .regex(
+                /^\d{1,2}\.\d{1,3}(\.\d{1,3})?$/u,
+              )
+              .optional(),
           })
           .strict(),
         outputSchema:
@@ -7173,8 +7189,31 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
         targetPath,
         format,
         expectedSourceRevision,
+        embedTilesets,
+        detachTemplates,
+        resolveTypesAndProperties,
+        minimize,
+        exportVersion,
       }) =>
         executeTool(async () => {
+          const exportOptions = {
+            ...(embedTilesets === undefined
+              ? {}
+              : { embedTilesets }),
+            ...(detachTemplates === undefined
+              ? {}
+              : { detachTemplates }),
+            ...(resolveTypesAndProperties ===
+            undefined
+              ? {}
+              : { resolveTypesAndProperties }),
+            ...(minimize === undefined
+              ? {}
+              : { minimize }),
+            ...(exportVersion === undefined
+              ? {}
+              : { exportVersion }),
+          };
           const plan = await maps.planExportFile(
             {
               sourcePath,
@@ -7186,6 +7225,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
               undefined
                 ? {}
                 : { expectedSourceRevision }),
+              exportOptions,
             },
             (options) =>
               cli.exportAsset(options),

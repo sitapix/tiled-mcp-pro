@@ -278,9 +278,9 @@ The full per-tool reference for inspecting, previewing, approving, applying, and
 ```json
 {
   "_meta": {
-    "revision": "sha256:b05a5b6ff5f36c1ca3e2e6f4cc7f830d33f2623f2952f6c73190377089cf4873",
+    "revision": "sha256:994c5e97704149e566d341e0c3bdbbc5a07bb3ff6b9cea5bdb898f51241970dd",
     "serverVersion": "0.0.2",
-    "size": 117441
+    "size": 117733
   },
   "annotations": {
     "audience": [
@@ -292,7 +292,7 @@ The full per-tool reference for inspecting, previewing, approving, applying, and
   "description": "The full per-tool reference for inspecting, previewing, approving, applying, and verifying safe Tiled map edits. It is large; read one section at a time via tiled://guide/{section} (the Contents block lists the slugs).",
   "mimeType": "text/markdown",
   "name": "guide",
-  "size": 117441,
+  "size": 117733,
   "title": "TiledMCP safe editing guide",
   "uri": "tiled://guide"
 }
@@ -300,7 +300,7 @@ The full per-tool reference for inspecting, previewing, approving, applying, and
 
 Content contract: `text`, 4013 UTF-8 bytes, revision `sha256:cad493fb51e07b0886c44ff2de763aeb9a43020f398f40733b4876d2b4ae286c`.
 
-Content contract: `text`, 117441 UTF-8 bytes, revision `sha256:b05a5b6ff5f36c1ca3e2e6f4cc7f830d33f2623f2952f6c73190377089cf4873`.
+Content contract: `text`, 117733 UTF-8 bytes, revision `sha256:994c5e97704149e566d341e0c3bdbbc5a07bb3ff6b9cea5bdb898f51241970dd`.
 
 Prompts: none.
 
@@ -36767,7 +36767,7 @@ Output schema:
 
 Availability: `tiled-cli-version-probe`
 
-Runs the local Tiled CLI's own --export-map/--export-tileset conversion from one project .tmj/.tsj source into a server-owned staging file and returns an expiring fileExport change set carrying the approved output's content hash. The format comes from the probed export-format whitelist (explicit or via the target extension); the target must be a new project file (exports never overwrite), the source is revision-pinned, and apply re-runs the export and fails closed unless the output bytes exactly match the approved hash.
+Runs the local Tiled CLI's own --export-map/--export-tileset conversion from one project .tmj/.tsj source into a server-owned staging file and returns an expiring fileExport change set carrying the approved output's content hash. The format comes from the probed export-format whitelist (explicit or via the target extension); the target must be a new project file (exports never overwrite), the source is revision-pinned, and apply re-runs the export and fails closed unless the output bytes exactly match the approved hash. Optional switches pass through to the exporter and are baked into the plan digest so apply replays them exactly: embedTilesets inlines external tilesets (map sources only; fails closed on tilesets), detachTemplates expands template instances, resolveTypesAndProperties resolves class/enum property types into concrete values for engines that do not read .tiled-project files, minimize omits insignificant whitespace, and exportVersion pins Tiled's output compatibility version (for example "1.8").
 
 Annotations:
 
@@ -36781,14 +36781,16 @@ Annotations:
 }
 ```
 
-Example purpose: Convert a project map to TMX through Tiled's own CLI exporter and stage the approved bytes as a new-file change set.
+Example purpose: Convert a project map to minimized JSON through Tiled's own CLI exporter, with property types resolved, and stage the approved bytes as a new-file change set.
 
 ```json
 {
   "arguments": {
     "expectedSourceRevision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "minimize": true,
+    "resolveTypesAndProperties": true,
     "sourcePath": "maps/example.tmj",
-    "targetPath": "exports/example.tmx"
+    "targetPath": "exports/example.json"
   },
   "name": "tiled_preview_export"
 }
@@ -36801,14 +36803,34 @@ Input schema:
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "properties": {
+    "detachTemplates": {
+      "const": true,
+      "type": "boolean"
+    },
+    "embedTilesets": {
+      "const": true,
+      "type": "boolean"
+    },
     "expectedSourceRevision": {
       "description": "SHA-256 revision returned by a read or preview",
       "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
     },
+    "exportVersion": {
+      "pattern": "^\\d{1,2}\\.\\d{1,3}(\\.\\d{1,3})?$",
+      "type": "string"
+    },
     "format": {
       "pattern": "^[a-z0-9]{1,16}$",
       "type": "string"
+    },
+    "minimize": {
+      "const": true,
+      "type": "boolean"
+    },
+    "resolveTypesAndProperties": {
+      "const": true,
+      "type": "boolean"
     },
     "sourcePath": {
       "description": "Canonical project-relative POSIX path; absolute paths and .. are forbidden",
@@ -36919,6 +36941,32 @@ Output schema:
                     ],
                     "type": "string"
                   },
+                  "exportOptions": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "detachTemplates": {
+                        "const": true,
+                        "type": "boolean"
+                      },
+                      "embedTilesets": {
+                        "const": true,
+                        "type": "boolean"
+                      },
+                      "exportVersion": {
+                        "pattern": "^\\d{1,2}\\.\\d{1,3}(\\.\\d{1,3})?$",
+                        "type": "string"
+                      },
+                      "minimize": {
+                        "const": true,
+                        "type": "boolean"
+                      },
+                      "resolveTypesAndProperties": {
+                        "const": true,
+                        "type": "boolean"
+                      }
+                    },
+                    "type": "object"
+                  },
                   "format": {
                     "pattern": "^[a-z0-9]{1,16}$",
                     "type": "string"
@@ -36994,6 +37042,32 @@ Output schema:
                     "template"
                   ],
                   "type": "string"
+                },
+                "exportOptions": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "detachTemplates": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "embedTilesets": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "exportVersion": {
+                      "pattern": "^\\d{1,2}\\.\\d{1,3}(\\.\\d{1,3})?$",
+                      "type": "string"
+                    },
+                    "minimize": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "resolveTypesAndProperties": {
+                      "const": true,
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
                 },
                 "format": {
                   "pattern": "^[a-z0-9]{1,16}$",
@@ -48607,6 +48681,32 @@ Output schema:
                     ],
                     "type": "string"
                   },
+                  "exportOptions": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "detachTemplates": {
+                        "const": true,
+                        "type": "boolean"
+                      },
+                      "embedTilesets": {
+                        "const": true,
+                        "type": "boolean"
+                      },
+                      "exportVersion": {
+                        "pattern": "^\\d{1,2}\\.\\d{1,3}(\\.\\d{1,3})?$",
+                        "type": "string"
+                      },
+                      "minimize": {
+                        "const": true,
+                        "type": "boolean"
+                      },
+                      "resolveTypesAndProperties": {
+                        "const": true,
+                        "type": "boolean"
+                      }
+                    },
+                    "type": "object"
+                  },
                   "format": {
                     "pattern": "^[a-z0-9]{1,16}$",
                     "type": "string"
@@ -48682,6 +48782,32 @@ Output schema:
                     "template"
                   ],
                   "type": "string"
+                },
+                "exportOptions": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "detachTemplates": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "embedTilesets": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "exportVersion": {
+                      "pattern": "^\\d{1,2}\\.\\d{1,3}(\\.\\d{1,3})?$",
+                      "type": "string"
+                    },
+                    "minimize": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "resolveTypesAndProperties": {
+                      "const": true,
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
                 },
                 "format": {
                   "pattern": "^[a-z0-9]{1,16}$",

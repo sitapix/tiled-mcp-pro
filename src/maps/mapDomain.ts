@@ -17,6 +17,9 @@ import {
   type LoadedDocument,
 } from "../storage/documentStore.js";
 import {
+  type FileExportOptions,
+} from "./fileExport.js";
+import {
   type PreviewRegion,
 } from "./previewScene.js";
 import {
@@ -509,6 +512,7 @@ export type TiledExportRunner = (options: {
   sourcePath: string;
   outputPath: string;
   maxOutputBytes: number;
+  exportOptions?: FileExportOptions;
 }) => Promise<Buffer>;
 
 export interface UpdateWangsetsInput {

@@ -260,6 +260,182 @@ describe("tiled CLI file export", () => {
       code: "RESULT_LIMIT_EXCEEDED",
     });
   });
+
+  it("carries exporter switches through plan, preview, and replay", async () => {
+    const harness = await createHarness(roots);
+    const output = Buffer.from(
+      '{"exported":true}\n',
+      "utf8",
+    );
+    const calls: Array<Record<string, unknown>> =
+      [];
+    const runner: TiledExportRunner = async (
+      options,
+    ) => {
+      calls.push({ ...options });
+      return output;
+    };
+    const exportOptions = {
+      embedTilesets: true,
+      resolveTypesAndProperties: true,
+      minimize: true,
+      exportVersion: "1.8",
+    } as const;
+
+    const plan = await harness.service.planExportFile(
+      {
+        sourcePath: MAP_PATH,
+        targetPath: "exports/level.json",
+        exportOptions,
+      },
+      runner,
+      ALLOWED,
+    );
+    expect(plan.exportOptions).toEqual(
+      exportOptions,
+    );
+    expect(plan.summary.exportOptions).toEqual(
+      exportOptions,
+    );
+    expect(calls[0]?.exportOptions).toEqual(
+      exportOptions,
+    );
+
+    // The switches are part of the digest: the same export without
+    // them is a different plan.
+    const bare = await harness.service.planExportFile(
+      {
+        sourcePath: MAP_PATH,
+        targetPath: "exports/level.json",
+      },
+      runner,
+      ALLOWED,
+    );
+    expect(bare.exportOptions).toBeUndefined();
+    expect(bare.id).not.toBe(plan.id);
+
+    const preview = new ChangeSetRegistry().put(
+      plan,
+    );
+    expect(preview.operations[0]).toMatchObject({
+      type: "exportFile",
+      exportOptions,
+    });
+
+    await harness.service.applyExportFile(
+      plan,
+      runner,
+    );
+    const replay = calls.at(-1);
+    expect(replay?.exportOptions).toEqual(
+      exportOptions,
+    );
+  });
+
+  it("fails closed on map-only switches and malformed versions", async () => {
+    const harness = await createHarness(roots);
+    await mkdir(join(harness.root, "tiles"));
+    await writeFile(
+      join(harness.root, "tiles/atlas.tsj"),
+      serializeJsonDocument({
+        columns: 1,
+        image: "atlas.png",
+        imageheight: 16,
+        imagewidth: 16,
+        margin: 0,
+        name: "atlas",
+        spacing: 0,
+        tilecount: 1,
+        tiledversion: "1.12.2",
+        tileheight: 16,
+        tilewidth: 16,
+        type: "tileset",
+        version: "1.10",
+      }),
+    );
+    const runner: TiledExportRunner = async () =>
+      Buffer.from("never runs", "utf8");
+
+    await expect(
+      harness.service.planExportFile(
+        {
+          sourcePath: "tiles/atlas.tsj",
+          targetPath: "exports/atlas.json",
+          exportOptions: { embedTilesets: true },
+        },
+        runner,
+        ALLOWED,
+      ),
+    ).rejects.toMatchObject({
+      code: "INVALID_ARGUMENT",
+    });
+
+    await expect(
+      harness.service.planExportFile(
+        {
+          sourcePath: MAP_PATH,
+          targetPath: "exports/level.json",
+          exportOptions: {
+            exportVersion: "current",
+          },
+        },
+        runner,
+        ALLOWED,
+      ),
+    ).rejects.toMatchObject({
+      code: "INVALID_ARGUMENT",
+    });
+  });
+
+  it("emits option flags before the export switch, in declaration order", async () => {
+    const root = await mkdtemp(
+      join(tmpdir(), "tiledmcp-fake-tiled-opts-"),
+    );
+    roots.add(root);
+    const fakeTiled = join(
+      root,
+      "fake-tiled.mjs",
+    );
+    await writeFile(
+      fakeTiled,
+      [
+        "#!/usr/bin/env node",
+        "import { writeFileSync } from 'node:fs';",
+        "const args = process.argv.slice(2);",
+        "const expected = ['--embed-tilesets', '--minimize', '--export-version', '1.8', '--export-map', 'json'];",
+        "const head = args.slice(0, expected.length);",
+        "if (JSON.stringify(head) !== JSON.stringify(expected) || args.length !== expected.length + 2) {",
+        "  process.stderr.write('unexpected args: ' + JSON.stringify(args) + '\\n');",
+        "  process.exit(2);",
+        "}",
+        "writeFileSync(args[args.length - 1], 'exported-with-options\\n');",
+        "process.exit(0);",
+      ].join("\n"),
+      "utf8",
+    );
+    await chmod(fakeTiled, 0o700);
+    const adapter = new TiledCliAdapter({
+      tiledCliPath: fakeTiled,
+      rasterizerPath: process.execPath,
+    });
+    const sourcePath = join(root, "in.tmj");
+    await writeFile(sourcePath, "{}", "utf8");
+    const bytes = await adapter.exportAsset({
+      kind: "map",
+      format: "json",
+      sourcePath,
+      outputPath: join(root, "out.json"),
+      maxOutputBytes: 1024,
+      exportOptions: {
+        embedTilesets: true,
+        minimize: true,
+        exportVersion: "1.8",
+      },
+    });
+    expect(bytes.toString("utf8")).toBe(
+      "exported-with-options\n",
+    );
+  });
 });
 
 function baseMap() {

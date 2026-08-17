@@ -1013,11 +1013,13 @@
     {
       "name": "tiled_preview_export",
       "profile": "with-tmxrasterizer",
-      "purpose": "Convert a project map to TMX through Tiled's own CLI exporter and stage the approved bytes as a new-file change set.",
+      "purpose": "Convert a project map to minimized JSON through Tiled's own CLI exporter, with property types resolved, and stage the approved bytes as a new-file change set.",
       "arguments": {
         "sourcePath": "maps/example.tmj",
-        "targetPath": "exports/example.tmx",
-        "expectedSourceRevision": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        "targetPath": "exports/example.json",
+        "expectedSourceRevision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "minimize": true,
+        "resolveTypesAndProperties": true
       }
     },
     {

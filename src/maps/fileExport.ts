@@ -17,11 +17,80 @@ export const NATIVE_TMX_WARNING =
 const FILE_EXPORT_PLAN_HASH_DOMAIN =
   "tiledmcp/file-export-plan/v1\0";
 
+/**
+ * Pass-through switches for Tiled's own exporter, mirroring its CLI
+ * flags. Members are present only when engaged (`true`, or a version
+ * string) so the stable-JSON plan digest stays canonical and plans
+ * without options hash identically to plans from before options
+ * existed. `embedTilesets` is map-only — Tiled ignores it on tileset
+ * exports, and a silently ignored switch would still change the plan
+ * id, so the planner fails closed instead.
+ */
+export interface FileExportOptions {
+  embedTilesets?: true;
+  detachTemplates?: true;
+  resolveTypesAndProperties?: true;
+  minimize?: true;
+  exportVersion?: string;
+}
+
+export const EXPORT_VERSION_PATTERN =
+  /^\d{1,2}\.\d{1,3}(\.\d{1,3})?$/u;
+
+export function hasFileExportOptions(
+  value: FileExportOptions,
+): boolean {
+  return (
+    value.embedTilesets === true ||
+    value.detachTemplates === true ||
+    value.resolveTypesAndProperties === true ||
+    value.minimize === true ||
+    value.exportVersion !== undefined
+  );
+}
+
+function isValidFileExportOptions(
+  value: unknown,
+): value is FileExportOptions {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const options = value as Record<string, unknown>;
+  const flags = [
+    "embedTilesets",
+    "detachTemplates",
+    "resolveTypesAndProperties",
+    "minimize",
+  ] as const;
+  for (const key of Object.keys(options)) {
+    if (
+      key !== "exportVersion" &&
+      !(flags as readonly string[]).includes(key)
+    ) {
+      return false;
+    }
+  }
+  return (
+    flags.every(
+      (flag) =>
+        options[flag] === undefined ||
+        options[flag] === true,
+    ) &&
+    (options.exportVersion === undefined ||
+      (typeof options.exportVersion === "string" &&
+        EXPORT_VERSION_PATTERN.test(
+          options.exportVersion,
+        ))) &&
+    hasFileExportOptions(options)
+  );
+}
+
 export interface FileExportSummary {
   sourcePath: string;
   targetPath: string;
   exportKind: "map" | "tileset" | "template";
   format: string;
+  exportOptions?: FileExportOptions;
   contentBytes: number;
   wouldChange: true;
 }
@@ -45,6 +114,13 @@ export interface FileExportPlan {
   targetPath: string;
   exportKind: "map" | "tileset" | "template";
   format: string;
+  /**
+   * Present only on tiled-cli plans that engage at least one exporter
+   * switch. Apply replays the export with exactly these options; the
+   * plan digest covers them, so approved bytes and approved options
+   * cannot drift apart.
+   */
+  exportOptions?: FileExportOptions;
   /**
    * Present when class-typed properties serialize: the project file
    * whose definitions typed the members, pinned by revision so apply
@@ -89,6 +165,11 @@ export function assertFileExportPlan(
       plan.exportKind !== "template") ||
     typeof plan.format !== "string" ||
     !EXPORT_FORMAT_PATTERN.test(plan.format) ||
+    (plan.exportOptions !== undefined &&
+      (plan.producer !== "tiled-cli" ||
+        !isValidFileExportOptions(
+          plan.exportOptions,
+        ))) ||
     (plan.projectFilePath !== undefined &&
       typeof plan.projectFilePath !==
         "string") ||

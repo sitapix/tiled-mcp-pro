@@ -629,10 +629,14 @@ into a server-owned staging file — the CLI never touches the project
 directly. The format must appear in the probed export-format whitelist
 (pass it explicitly or let the target extension imply it), the target
 must be a new project file (exports never overwrite), and the source is
-revision-pinned. The returned \`fileExport\` change set's
-\`expectedRevision\` is the SHA-256 of the approved output bytes; apply
-re-runs the export under the same source pin and fails closed unless the
-bytes match exactly, then commits via no-replace creation.
+revision-pinned. Optional switches pass straight through to Tiled's
+exporter — \`embedTilesets\` (map sources only), \`detachTemplates\`,
+\`resolveTypesAndProperties\`, \`minimize\`, and \`exportVersion\` — and
+are baked into the plan digest and echoed in the summary, so what was
+approved is exactly what replays. The returned \`fileExport\` change
+set's \`expectedRevision\` is the SHA-256 of the approved output bytes;
+apply re-runs the export under the same source pin and fails closed
+unless the bytes match exactly, then commits via no-replace creation.
 
 ## Place template instances
 

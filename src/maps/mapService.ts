@@ -133,10 +133,13 @@ import {
 } from "./fileDelete.js";
 import {
   EXPORT_FORMAT_PATTERN,
+  EXPORT_VERSION_PATTERN,
+  type FileExportOptions,
   type FileExportPlan,
   MAX_EXPORT_OUTPUT_BYTES,
   assertFileExportPlan,
   fileExportPlanId,
+  hasFileExportOptions,
 } from "./fileExport.js";
 import {
   type GenerateAlgorithmInput,
@@ -4886,6 +4889,7 @@ export class MapService {
       targetPath: string;
       format?: string;
       expectedSourceRevision?: string;
+      exportOptions?: FileExportOptions;
     },
     runner: TiledExportRunner,
     allowedFormats: {
@@ -4946,6 +4950,36 @@ export class MapService {
         { format, allowed: [...whitelist] },
       );
     }
+    const exportOptions =
+      input.exportOptions !== undefined &&
+      hasFileExportOptions(input.exportOptions)
+        ? input.exportOptions
+        : undefined;
+    if (
+      exportOptions?.embedTilesets &&
+      exportKind !== "map"
+    ) {
+      // Tiled would silently ignore the flag on a tileset export, but the
+      // option would still be baked into the plan id and summary, so the
+      // approval would misdescribe what happens. Fail closed instead.
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        "embedTilesets applies to map exports only.",
+        { exportKind },
+      );
+    }
+    if (
+      exportOptions?.exportVersion !== undefined &&
+      !EXPORT_VERSION_PATTERN.test(
+        exportOptions.exportVersion,
+      )
+    ) {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        "exportVersion must be a dotted Tiled compatibility version such as \"1.8\".",
+        { exportVersion: exportOptions.exportVersion },
+      );
+    }
     const snapshot =
       await this.store.readSnapshot(sourcePath);
     if (
@@ -4973,6 +5007,7 @@ export class MapService {
       format,
       sourcePath,
       snapshot.revision,
+      exportOptions,
     );
     const unsignedPlan: Omit<
       FileExportPlan,
@@ -4986,12 +5021,18 @@ export class MapService {
       targetPath,
       exportKind,
       format,
+      ...(exportOptions === undefined
+        ? {}
+        : { exportOptions }),
       baseRevision: revisionOf(content),
       summary: {
         sourcePath,
         targetPath,
         exportKind,
         format,
+        ...(exportOptions === undefined
+          ? {}
+          : { exportOptions }),
         contentBytes: content.byteLength,
         wouldChange: true,
       },
@@ -9831,6 +9872,7 @@ export class MapService {
             plan.format,
             plan.sourcePath,
             plan.sourceRevision,
+            plan.exportOptions,
           );
     if (revisionOf(content) !== plan.baseRevision) {
       throw new TiledMcpError(
@@ -9880,6 +9922,7 @@ export class MapService {
     format: string,
     sourcePath: string,
     expectedSourceRevision: string,
+    exportOptions?: FileExportOptions,
   ): Promise<Buffer> {
     const absoluteSource =
       await this.resolver.resolveExisting(
@@ -9898,6 +9941,9 @@ export class MapService {
           `out.${format}`,
         ),
         maxOutputBytes: MAX_EXPORT_OUTPUT_BYTES,
+        ...(exportOptions === undefined
+          ? {}
+          : { exportOptions }),
       });
       await assertRevisionUnchanged(
         this.store,

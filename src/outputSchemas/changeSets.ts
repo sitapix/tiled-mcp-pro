@@ -3703,6 +3703,23 @@ export const tilesetPropertyEditPreviewToolOutputSchema =
     tilesetPropertyEditPreviewOutputSchema,
   );
 
+// Members appear only when engaged, mirroring the plan's canonical
+// digest shape; a plan with no options omits the object entirely.
+const fileExportOptionsOutputSchema = z
+  .object({
+    embedTilesets: z.literal(true).optional(),
+    detachTemplates: z.literal(true).optional(),
+    resolveTypesAndProperties: z
+      .literal(true)
+      .optional(),
+    minimize: z.literal(true).optional(),
+    exportVersion: z
+      .string()
+      .regex(/^\d{1,2}\.\d{1,3}(\.\d{1,3})?$/u)
+      .optional(),
+  })
+  .strict();
+
 const fileExportSummaryOutputSchema = z
   .object({
     sourcePath: projectPathOutputSchema,
@@ -3715,6 +3732,8 @@ const fileExportSummaryOutputSchema = z
     format: z
       .string()
       .regex(/^[a-z0-9]{1,16}$/u),
+    exportOptions:
+      fileExportOptionsOutputSchema.optional(),
     contentBytes: positiveIntegerOutputSchema,
     wouldChange: z.literal(true),
   })
@@ -3750,6 +3769,8 @@ const fileExportPreviewOutputSchema = z
             format: z
               .string()
               .regex(/^[a-z0-9]{1,16}$/u),
+            exportOptions:
+              fileExportOptionsOutputSchema.optional(),
             contentBytes:
               positiveIntegerOutputSchema,
           })

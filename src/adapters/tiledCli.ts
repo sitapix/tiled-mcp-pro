@@ -12,6 +12,9 @@ import {
 } from "../errorRegistry.js";
 import { decodeSafeImageRgba } from "../images/safeImage.js";
 import {
+  type FileExportOptions,
+} from "../maps/fileExport.js";
+import {
   MAX_RASTER_PNG_BYTES,
   MAX_RASTER_RENDER_EDGE,
   MAX_RENDERER_VERSION_LENGTH,
@@ -315,13 +318,39 @@ export class TiledCliAdapter {
     outputPath: string;
     maxOutputBytes: number;
     timeoutMs?: number;
+    exportOptions?: FileExportOptions;
   }): Promise<Buffer> {
     requirePath(options.sourcePath, "sourcePath");
     requirePath(options.outputPath, "outputPath");
+    // Option flags precede the export switch; a fixed emission order
+    // keeps the invocation deterministic for identical plans.
+    const optionArgs: string[] = [];
+    const exportOptions = options.exportOptions;
+    if (exportOptions?.embedTilesets) {
+      optionArgs.push("--embed-tilesets");
+    }
+    if (exportOptions?.detachTemplates) {
+      optionArgs.push("--detach-templates");
+    }
+    if (exportOptions?.resolveTypesAndProperties) {
+      optionArgs.push(
+        "--resolve-types-and-properties",
+      );
+    }
+    if (exportOptions?.minimize) {
+      optionArgs.push("--minimize");
+    }
+    if (exportOptions?.exportVersion !== undefined) {
+      optionArgs.push(
+        "--export-version",
+        exportOptions.exportVersion,
+      );
+    }
     await this.run(
       "tiled",
       this.tiledCliPath,
       [
+        ...optionArgs,
         options.kind === "map"
           ? "--export-map"
           : "--export-tileset",
