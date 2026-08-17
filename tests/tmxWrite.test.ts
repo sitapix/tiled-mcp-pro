@@ -1,5 +1,5 @@
 import {
-  hasTiledCli,
+  hasExactTiled1122,
   TILED_CLI_PATH,
 } from "./support/tiledCli.js";
 import { execFile } from "node:child_process";
@@ -715,7 +715,10 @@ describe("native TMX write via change sets", () => {
     });
   });
 
-  it.skipIf(!hasTiledCli)(
+  // Byte parity only holds against the exact version the fixtures pin:
+  // Tiled stamps its own version into exports, so 1.12.1 output differs
+  // on the tiledversion attribute alone.
+  it.skipIf(!hasExactTiled1122)(
     "matches the real Tiled CLI export byte for byte",
     { timeout: 60_000 },
     async () => {
@@ -880,7 +883,7 @@ describe("native TSX serialization and write", () => {
     ).toBe(GOLDEN_TSX);
   });
 
-  it.skipIf(!hasTiledCli)(
+  it.skipIf(!hasExactTiled1122)(
     "matches the real Tiled CLI tileset export byte for byte",
     { timeout: 60_000 },
     async () => {

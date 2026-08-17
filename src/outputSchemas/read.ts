@@ -426,6 +426,7 @@ const mapSummaryResultOutputSchema = z
       "orthogonal",
       "isometric",
       "staggered",
+      "oblique",
       "hexagonal",
     ]),
     staggerAxis: z.enum(["x", "y"]).optional(),
@@ -437,6 +438,8 @@ const mapSummaryResultOutputSchema = z
       .int()
       .min(0)
       .optional(),
+    skewX: z.number().int().optional(),
+    skewY: z.number().int().optional(),
     infinite: z.boolean(),
     renderOrder: z.enum([
       "right-down",
@@ -488,6 +491,7 @@ const mapSummaryResultOutputSchema = z
       "finite-orthogonal-tmj-external-atlas-tsj",
       "infinite-orthogonal-tmj-read-only-chunked",
       "isometric-tmj-editable-core",
+      "oblique-tmj-editable-core",
       "staggered-hexagonal-tmj-read-only",
     ]),
   })
@@ -1034,6 +1038,90 @@ const renderHexagonalResultOutputSchema = z
       .max(64),
     renderProfile: z.literal(
       "staggered-hexagonal-tile-layers-v1",
+    ),
+    snapshotConsistency: z.literal(
+      "non-atomic-read-set",
+    ),
+  })
+  .strict();
+
+const renderObliqueResultOutputSchema = z
+  .object({
+    mimeType: z.literal("image/png"),
+    pixelSize: z
+      .object({
+        width: positiveIntegerOutputSchema,
+        height: positiveIntegerOutputSchema,
+      })
+      .strict(),
+    byteLength: positiveIntegerOutputSchema,
+    sha256: revisionOutputSchema,
+    map: mapSnapshotOutputSchema,
+    dependencyRevisions:
+      dependencyRevisionsOutputSchema,
+    region: z
+      .object({
+        x: nonnegativeIntegerOutputSchema,
+        y: nonnegativeIntegerOutputSchema,
+        width: positiveIntegerOutputSchema,
+        height: positiveIntegerOutputSchema,
+      })
+      .strict(),
+    scale: positiveIntegerOutputSchema,
+    projection: z
+      .object({
+        orientation: z.literal("oblique"),
+        tileWidth: positiveIntegerOutputSchema,
+        tileHeight: positiveIntegerOutputSchema,
+        skewX: integerOutputSchema,
+        skewY: integerOutputSchema,
+        originPixel: z
+          .object({
+            x: integerOutputSchema,
+            y: integerOutputSchema,
+          })
+          .strict(),
+      })
+      .strict(),
+    layers: z
+      .array(
+        z
+          .object({
+            id: positiveIntegerOutputSchema,
+            name: z.string().max(128),
+            nameTruncated:
+              truncatedMarkerOutputSchema,
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(128),
+    omittedObjectLayerIds: z
+      .array(positiveIntegerOutputSchema)
+      .max(128),
+    sources: z
+      .array(
+        z
+          .object({
+            tileset: z
+              .object({
+                assetId: assetIdOutputSchema,
+                path: projectPathOutputSchema,
+                revision: revisionOutputSchema,
+              })
+              .strict(),
+            image: z
+              .object({
+                path: projectPathOutputSchema,
+                revision: revisionOutputSchema,
+              })
+              .strict(),
+          })
+          .strict(),
+      )
+      .max(64),
+    renderProfile: z.literal(
+      "oblique-tile-layers-v1",
     ),
     snapshotConsistency: z.literal(
       "non-atomic-read-set",
@@ -2641,6 +2729,7 @@ export const renderPreviewToolOutputSchema = toolOutputSchema(
     nativePreviewResultOutputSchema,
     renderIsometricResultOutputSchema,
     renderHexagonalResultOutputSchema,
+    renderObliqueResultOutputSchema,
   ]),
 );
 

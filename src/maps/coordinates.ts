@@ -48,6 +48,7 @@ export type ProjectionOrientation =
   | "orthogonal"
   | "isometric"
   | "staggered"
+  | "oblique"
   | "hexagonal";
 
 export interface Projection {
@@ -67,6 +68,13 @@ export interface Projection {
   staggerIndex: "odd" | "even";
   /** Hexagonal side length; staggered maps are the degenerate 0 case. */
   hexSideLength: number;
+  /**
+   * Oblique horizontal shear: map `skewx`, the pixel offset added per tile
+   * row. 0 for every other orientation (and omitted from documents when 0).
+   */
+  skewX: number;
+  /** Oblique vertical shear: map `skewy`, the pixel offset per tile column. */
+  skewY: number;
 }
 
 export interface Point {
@@ -270,6 +278,96 @@ function isometricPixelToTile(
 }
 
 /**
+ * `ObliqueRenderer::transform()`: a plain 2D shear, with each skew divided
+ * by the *opposite* tile edge. Verified against tmxrasterizer 1.12 pixel
+ * output: skewX shifts a row right by `skewX * rowPixelY / tileHeight`,
+ * skewY shifts a column down symmetrically.
+ */
+function obliqueShear(projection: Projection): {
+  shearX: number;
+  shearY: number;
+} {
+  return {
+    shearX:
+      projection.skewX / projection.tileHeight,
+    shearY:
+      projection.skewY / projection.tileWidth,
+  };
+}
+
+/**
+ * The shear's determinant. Zero exactly when `skewX * skewY` equals
+ * `tileWidth * tileHeight`, where the transform collapses the plane onto a
+ * line. Qt's `QTransform::inverted` reports failure there and Tiled's
+ * renderer silently substitutes the identity for screen->pixel;
+ * {@link assertUsableProjection} fails closed instead, because a substitute
+ * transform would let a conversion round-trip to a different point.
+ */
+function obliqueDeterminant(
+  projection: Projection,
+): number {
+  const { shearX, shearY } =
+    obliqueShear(projection);
+  return 1 - shearX * shearY;
+}
+
+function obliquePixelToScreen(
+  projection: Projection,
+  point: Point,
+): Point {
+  const { shearX, shearY } =
+    obliqueShear(projection);
+  return {
+    x: point.x + shearX * point.y,
+    y: point.y + shearY * point.x,
+  };
+}
+
+function obliqueScreenToPixel(
+  projection: Projection,
+  point: Point,
+): Point {
+  const { shearX, shearY } =
+    obliqueShear(projection);
+  const determinant =
+    obliqueDeterminant(projection);
+  return {
+    x:
+      (point.x - shearX * point.y) / determinant,
+    y:
+      (point.y - shearY * point.x) / determinant,
+  };
+}
+
+/**
+ * Oblique inherits OrthogonalRenderer's tile<->pixel mapping wholesale; the
+ * skew enters only between pixel and screen space.
+ */
+function obliqueTileToScreen(
+  projection: Projection,
+  point: Point,
+): Point {
+  return obliquePixelToScreen(projection, {
+    x: point.x * projection.tileWidth,
+    y: point.y * projection.tileHeight,
+  });
+}
+
+function obliqueScreenToTile(
+  projection: Projection,
+  point: Point,
+): Point {
+  const pixel = obliqueScreenToPixel(
+    projection,
+    point,
+  );
+  return {
+    x: pixel.x / projection.tileWidth,
+    y: pixel.y / projection.tileHeight,
+  };
+}
+
+/**
  * `HexagonalRenderer::tileToScreenCoords`. The C++ floors both inputs to whole
  * cells and then works in ints, so the result is always an integer pixel. Note
  * that it reads the *derived* `RenderParams` tile size rather than the map's
@@ -449,10 +547,13 @@ function convertViaScreen(
 ): Point {
   // Orthogonal, staggered and hexagonal all inherit OrthogonalRenderer's
   // identity pixel<->screen mapping (HexagonalRenderer extends
-  // OrthogonalRenderer and overrides neither), so only the isometric
-  // renderer needs distinct pixel conversions.
+  // OrthogonalRenderer and overrides neither). Isometric and oblique each
+  // override it: isometric with the diamond projection, oblique with the
+  // skew shear.
   const isometric =
     projection.orientation === "isometric";
+  const oblique =
+    projection.orientation === "oblique";
 
   if (from === to) {
     return { x: point.x, y: point.y };
@@ -471,21 +572,31 @@ function convertViaScreen(
               projection,
               point,
             )
-          : hexagonalTileToScreen(
-              hexagonalGeometryOf(projection),
-              point.x,
-              point.y,
-            );
+          : oblique
+            ? obliqueTileToScreen(
+                projection,
+                point,
+              )
+            : hexagonalTileToScreen(
+                hexagonalGeometryOf(projection),
+                point.x,
+                point.y,
+              );
     }
     // to === "pixel"
     return isometric
       ? isometricTileToPixel(projection, point)
-      : convertViaScreen(
-          projection,
-          "tile",
-          "screen",
-          point,
-        );
+      : oblique
+        ? orthogonalTileToScreen(
+            projection,
+            point,
+          )
+        : convertViaScreen(
+            projection,
+            "tile",
+            "screen",
+            point,
+          );
   }
 
   if (from === "screen") {
@@ -501,29 +612,43 @@ function convertViaScreen(
               projection,
               point,
             )
-          : hexScreenToTile(projection, point);
+          : oblique
+            ? obliqueScreenToTile(
+                projection,
+                point,
+              )
+            : hexScreenToTile(projection, point);
     }
     // to === "pixel"
     return isometric
       ? isometricScreenToPixel(projection, point)
-      : { x: point.x, y: point.y };
+      : oblique
+        ? obliqueScreenToPixel(
+            projection,
+            point,
+          )
+        : { x: point.x, y: point.y };
   }
 
   // from === "pixel"
   if (to === "screen") {
     return isometric
       ? isometricPixelToScreen(projection, point)
-      : { x: point.x, y: point.y };
+      : oblique
+        ? obliquePixelToScreen(projection, point)
+        : { x: point.x, y: point.y };
   }
   // to === "tile"
   return isometric
     ? isometricPixelToTile(projection, point)
-    : convertViaScreen(
-        projection,
-        "screen",
-        "tile",
-        point,
-      );
+    : oblique
+      ? orthogonalScreenToTile(projection, point)
+      : convertViaScreen(
+          projection,
+          "screen",
+          "tile",
+          point,
+        );
 }
 
 export interface CoordinateConversion {
@@ -564,6 +689,37 @@ export function assertUsableProjection(
         tileHeight: projection.tileHeight,
       },
     );
+  }
+  if (projection.orientation === "oblique") {
+    if (
+      !Number.isInteger(projection.skewX) ||
+      !Number.isInteger(projection.skewY)
+    ) {
+      throw new TiledMcpError(
+        "INVALID_DOCUMENT",
+        `${mapPath} must declare integer skewx and skewy.`,
+        {
+          skewX: projection.skewX,
+          skewY: projection.skewY,
+        },
+      );
+    }
+    if (obliqueDeterminant(projection) === 0) {
+      // skewX * skewY === tileWidth * tileHeight collapses the shear onto a
+      // line. Qt reports the inverse as unavailable and Tiled quietly falls
+      // back to the identity for screen->pixel; a substituted transform
+      // cannot round-trip, so fail closed instead of mirroring it.
+      throw new TiledMcpError(
+        "UNSUPPORTED_MAP_PROFILE",
+        `${mapPath} declares a degenerate oblique shear (skewx * skewy equals tilewidth * tileheight), which has no invertible screen transform.`,
+        {
+          skewX: projection.skewX,
+          skewY: projection.skewY,
+          tileWidth: projection.tileWidth,
+          tileHeight: projection.tileHeight,
+        },
+      );
+    }
   }
   if (!tileSpaceIsDiscrete(projection.orientation)) {
     return;

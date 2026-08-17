@@ -674,6 +674,25 @@ orientation-independent. Staggered and hexagonal maps are
 summary/region/usage read-only (stagger members disclosed, hex flip
 bits decoded as rotate60/rotate120); edits and renders fail closed.
 
+## Oblique maps
+
+Oblique orientation (Tiled 1.12+) is ObliqueRenderer =
+OrthogonalRenderer plus a shear: the map's integer \`skewx\`/\`skewy\`
+members offset each row and column by that many pixels, and tile
+images themselves stay axis-aligned. Storage is byte-identical to
+orthogonal, so oblique maps are editable exactly like isometric ones
+(\`editableProfile: "oblique-tmj-editable-core"\`), \`tiled_create_map\`
+accepts \`orientation: "oblique"\` with optional \`skewX\`/\`skewY\`,
+and the summary reports the effective skew (0 when the members are
+omitted). \`tiled_render_preview\` composites oblique regions with the
+verified anchor formula — cell (x, y) draws bottom-left anchored at
+\`(x*tileWidth + skewX*(y+1), (y+1)*tileHeight + skewY*x)\` on a
+canvas sized by the sheared region corners, matching tmxrasterizer
+pixel for pixel on full-map renders. Right-down render order only;
+anti-diagonal flips and the shared strict-profile exclusions fail
+closed. A degenerate shear (\`skewx*skewy == tilewidth*tileheight\`)
+fails closed everywhere: it has no screen inverse.
+
 ## Render staggered and hexagonal maps
 
 \`tiled_render_preview\` renders a bounded region of one staggered
@@ -839,7 +858,7 @@ either.
 
 Tiled has three coordinate spaces, and they coincide only for
 orthogonal maps. \`tiled_convert_coordinates\` applies the official
-1.12.2 renderer transforms between them for all four orientations, so
+1.12.2 renderer transforms between them for all five orientations, so
 placement never has to be derived by hand:
 
 - **tile** — cell indices, fractional except where noted below.
@@ -859,9 +878,11 @@ unreliable, and the result declares each one:
   is not at screen \`(0,0)\`.
 - Isometric **pixel** coordinates divide *both* axes by
   \`tileHeight\`, which is why object positions there do not scale
-  with \`tileWidth\`. The result reports
-  \`projection.pixelSpace: "distinct-from-screen"\` for isometric maps
-  and \`"same-as-screen"\` for every other orientation.
+  with \`tileWidth\`. Oblique pixel coordinates are the orthogonal
+  grid; the skew shear applies only between pixel and screen. The
+  result reports \`projection.pixelSpace: "distinct-from-screen"\` for
+  isometric and oblique maps and \`"same-as-screen"\` for every other
+  orientation.
 - Hexagonal and staggered maps snap to the nearest of four hexagon
   centres, so their tile space is discrete: there is no sub-cell
   remainder and \`cell\` equals \`output\`. The result reports

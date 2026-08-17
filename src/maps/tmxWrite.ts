@@ -38,6 +38,8 @@ const KNOWN_MAP_MEMBERS = new Set([
   "nextobjectid",
   "orientation",
   "renderorder",
+  "skewx",
+  "skewy",
   "tiledversion",
   "tileheight",
   "tilesets",
@@ -1512,9 +1514,24 @@ export function serializeTmxMap(
   if (document.type !== "map") {
     fail(`${mapPath} is not a Tiled map.`);
   }
-  if (document.orientation !== "orthogonal") {
+  if (
+    document.orientation !== "orthogonal" &&
+    document.orientation !== "oblique"
+  ) {
     fail(
-      `${mapPath} must be orthogonal; other orientations are outside the TMX writer profile.`,
+      `${mapPath} must be orthogonal or oblique; other orientations are outside the TMX writer profile.`,
+    );
+  }
+  if (
+    document.orientation !== "oblique" &&
+    (document.skewx !== undefined ||
+      document.skewy !== undefined)
+  ) {
+    // Tiled preserves stray skew members on any orientation, but a
+    // non-oblique document carrying them is outside anything its writer
+    // produces from a clean edit session; fail closed rather than guess.
+    fail(
+      `${mapPath} declares skewx/skewy without oblique orientation, which is outside the TMX writer profile.`,
     );
   }
   if (document.infinite === true) {
@@ -1552,7 +1569,10 @@ export function serializeTmxMap(
       attributes.add("class", className);
     }
   }
-  attributes.add("orientation", "orthogonal");
+  attributes.add(
+    "orientation",
+    document.orientation,
+  );
   attributes.add("renderorder", renderOrder);
   if (document.compressionlevel !== undefined) {
     const level = requireInt(
@@ -1595,6 +1615,30 @@ export function serializeTmxMap(
     ),
   );
   attributes.add("infinite", "0");
+  // mapwriter.cpp emits skewx/skewy between infinite and the parallax
+  // origin, each only when non-zero.
+  if (document.orientation === "oblique") {
+    const skewX =
+      document.skewx === undefined
+        ? 0
+        : requireInt(
+            document.skewx,
+            `${mapPath}.skewx`,
+          );
+    const skewY =
+      document.skewy === undefined
+        ? 0
+        : requireInt(
+            document.skewy,
+            `${mapPath}.skewy`,
+          );
+    if (skewX !== 0) {
+      attributes.add("skewx", String(skewX));
+    }
+    if (skewY !== 0) {
+      attributes.add("skewy", String(skewY));
+    }
+  }
   if (document.backgroundcolor !== undefined) {
     attributes.add(
       "backgroundcolor",

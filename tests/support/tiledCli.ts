@@ -37,9 +37,22 @@ const QT_QPA_PLATFORM =
   process.env.QT_QPA_PLATFORM ??
   (process.platform === "darwin" ? undefined : "offscreen");
 
-export const hasTiledCli: boolean = probe();
+export const hasTiledCli: boolean = probe() !== null;
 
-function probe(): boolean {
+/**
+ * Whether the installed CLI is exactly Tiled 1.12.2 — the version the
+ * byte-parity fixtures were generated against. Tiled stamps its own
+ * version into exported files (`tiledversion="1.12.1"` from a 1.12.1
+ * install), so byte-for-byte comparisons against any other version fail
+ * on the stamp alone and prove nothing about the serializer. Tests that
+ * assert byte equality with real CLI output gate on this; the
+ * verify:tiled-1.12.2 preflight still hard-fails on an inexact version
+ * before any test can skip, so the hard gate keeps its meaning.
+ */
+export const hasExactTiled1122: boolean =
+  probe() === "1.12.2";
+
+function probe(): string | null {
   try {
     const result = spawnSync(
       TILED_CLI_PATH,
@@ -49,14 +62,25 @@ function probe(): boolean {
           ...process.env,
           LANG: "C",
           LC_ALL: "C",
-          QT_QPA_PLATFORM,
+          ...(QT_QPA_PLATFORM === undefined
+            ? {}
+            : { QT_QPA_PLATFORM }),
         },
         timeout: 30_000,
       },
     );
-    return result.error === undefined && result.status === 0;
+    if (
+      result.error !== undefined ||
+      result.status !== 0
+    ) {
+      return null;
+    }
+    const match = /Tiled\s+(\S+)/u.exec(
+      String(result.stdout),
+    );
+    return match?.[1] ?? "unknown";
   } catch {
-    return false;
+    return null;
   }
 }
 

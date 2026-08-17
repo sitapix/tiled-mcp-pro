@@ -74,6 +74,12 @@ export const MAX_REMOVE_TILESET_GID_SCANS = 1_000_000;
 export const MAX_CREATE_TILE_LAYER_CELLS = MAX_CELL_WRITES;
 export const MAX_CREATE_MAP_DIMENSION = 100_000;
 export const MAX_CREATE_MAP_TILE_EDGE = 16_384;
+/**
+ * Bound on |skewx|/|skewy| for created oblique maps. Matches the tile-edge
+ * bound: a shear steeper than one full tile edge per cell is outside
+ * anything Tiled's editor produces.
+ */
+export const MAX_CREATE_MAP_SKEW = 16_384;
 export const MAX_LAYER_NAME_LENGTH = MAX_OBJECT_STRING_LENGTH;
 export const MAX_MAP_CLASS_NAME_CODE_POINTS = 1_024;
 export const MAX_REPLACE_TILE_MAPPINGS = 128;
@@ -213,6 +219,7 @@ export interface EditableContext {
     | "orthogonal"
     | "isometric"
     | "staggered"
+    | "oblique"
     | "hexagonal";
   infinite: boolean;
   bindings: TilesetBinding[];
@@ -256,10 +263,17 @@ export interface EditableContextRevisionGuards {
    * Read-only tools opt in to isometric maps explicitly. Tile data and
    * GID semantics are identical to orthogonal storage; only rendering
    * projects differently, so every edit and render path keeps the
-   * default fail-closed gate. Staggered, hexagonal, and oblique maps
-   * stay rejected everywhere.
+   * default fail-closed gate. Staggered and hexagonal maps stay
+   * rejected everywhere.
    */
   allowIsometric?: boolean;
+  /**
+   * Oblique maps (Tiled 1.12+) opt in on the same reasoning as
+   * isometric: storage is byte-identical to orthogonal and only the
+   * screen projection differs — by the skewx/skewy shear — so every
+   * path that admits isometric admits oblique alongside it.
+   */
+  allowOblique?: boolean;
   /**
    * Read-only tools that understand staggered and hexagonal storage
    * opt in explicitly; every edit and render path keeps the default
@@ -440,6 +454,12 @@ export interface CreateMapInput {
   tileWidth: number;
   tileHeight: number;
   backgroundColor?: string;
+  /** Defaults to orthogonal. Oblique additionally accepts skewX/skewY. */
+  orientation?: "orthogonal" | "oblique";
+  /** Oblique only: pixel offset per tile row, written as map `skewx`. */
+  skewX?: number;
+  /** Oblique only: pixel offset per tile column, written as map `skewy`. */
+  skewY?: number;
 }
 
 export interface CreateTilesetInput {

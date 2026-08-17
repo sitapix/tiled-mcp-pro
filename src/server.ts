@@ -96,6 +96,7 @@ import {
   MAX_CELL_WRITES,
   MAX_MERGE_OFFSET,
   MAX_CREATE_MAP_DIMENSION,
+  MAX_CREATE_MAP_SKEW,
   MAX_CREATE_MAP_TILE_EDGE,
   MAX_CREATE_TILE_LAYER_CELLS,
   MAX_DUPLICATE_LAYER_BYTES,
@@ -2139,7 +2140,11 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
           subscriptions: false,
           listChanged: true,
         },
-        editProfiles: ["finite-orthogonal-tmj-external-atlas-tsj"],
+        editProfiles: [
+          "finite-orthogonal-tmj-external-atlas-tsj",
+          "isometric-tmj-editable-core",
+          "oblique-tmj-editable-core",
+        ],
         mapOperations: ["updateMap", "resizeMap"],
         mapResizeCapabilities: {
           offsetUnit: "tiles",
@@ -2734,6 +2739,11 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
         mapCreationCapabilities: {
           profile:
             "finite-orthogonal-empty-tmj",
+          orientations: [
+            "orthogonal",
+            "oblique",
+          ],
+          maxSkewMagnitude: MAX_CREATE_MAP_SKEW,
           mapFormatVersion: "1.10",
           tiledCompatibilityBaseline:
             "1.12.2",
@@ -3099,6 +3109,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
             "orthogonal",
             "isometric",
             "staggered",
+            "oblique",
             "hexagonal",
           ],
           supportedFormats: ["png", "jpeg", "webp", "simple-svg"],
@@ -4430,12 +4441,19 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
                     layerIds,
                     scale,
                   })
-                : await maps.renderHexagonal({
-                    mapPath,
-                    region,
-                    layerIds,
-                    scale,
-                  });
+                : orientation === "oblique"
+                  ? await maps.renderOblique({
+                      mapPath,
+                      region,
+                      layerIds,
+                      scale,
+                    })
+                  : await maps.renderHexagonal({
+                      mapPath,
+                      region,
+                      layerIds,
+                      scale,
+                    });
             return imageToolResult(
               projected.result,
               projected.png,
@@ -4811,9 +4829,9 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
     registeredTools,
     "tiled_create_map",
     {
-      title: "Create a finite orthogonal TMJ map",
+      title: "Create a finite TMJ map",
       description:
-        "Directly creates a new empty TMJ as the sole additive no-preview mutation exception. The caller must confirm the target path; parent directories must exist, and any existing destination—including identical bytes—is never overwritten or treated as success.",
+        "Directly creates a new empty TMJ as the sole additive no-preview mutation exception. The caller must confirm the target path; parent directories must exist, and any existing destination—including identical bytes—is never overwritten or treated as success. orientation defaults to orthogonal; oblique (Tiled 1.12+) additionally accepts integer skewX/skewY — the pixel shear per tile row and column, written as the map's skewx/skewy members and omitted when 0 to match Tiled's canonical form. A degenerate shear (skewX * skewY equal to tileWidth * tileHeight) fails closed because it has no screen inverse.",
       inputSchema: z
         .object({
           mapPath: projectPathSchema,
@@ -4841,6 +4859,21 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
             .string()
             .regex(/^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/u)
             .optional(),
+          orientation: z
+            .enum(["orthogonal", "oblique"])
+            .optional(),
+          skewX: z
+            .number()
+            .int()
+            .min(-MAX_CREATE_MAP_SKEW)
+            .max(MAX_CREATE_MAP_SKEW)
+            .optional(),
+          skewY: z
+            .number()
+            .int()
+            .min(-MAX_CREATE_MAP_SKEW)
+            .max(MAX_CREATE_MAP_SKEW)
+            .optional(),
         })
         .strict(),
       outputSchema: toolOutputSchema(
@@ -4854,7 +4887,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
         openWorldHint: false,
       },
     },
-    async ({ mapPath, width, height, tileWidth, tileHeight, backgroundColor }) =>
+    async ({ mapPath, width, height, tileWidth, tileHeight, backgroundColor, orientation, skewX, skewY }) =>
       executeTool(() =>
         maps.createMap({
           mapPath,
@@ -4863,6 +4896,9 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
           tileWidth,
           tileHeight,
           ...(backgroundColor === undefined ? {} : { backgroundColor }),
+          ...(orientation === undefined ? {} : { orientation }),
+          ...(skewX === undefined ? {} : { skewX }),
+          ...(skewY === undefined ? {} : { skewY }),
         }),
       ),
   );

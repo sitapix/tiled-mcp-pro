@@ -115,7 +115,8 @@ registry.
 rooms-and-corridors dungeons, weighted scatter, reference-image import, and multi-layer
 prefab stamping. Same seed, same bytes. No `Math.random` in the codebase.
 
-**Render.** Native PNG output for orthogonal, isometric, staggered, and hexagonal maps;
+**Render.** Native PNG output for orthogonal, isometric, staggered, hexagonal, and
+oblique maps;
 tileset sheets; sparse tile selections; tile-layer previews with grid, coordinate,
 highlight, and object-debug overlays; pixel-level render diff. `tmxrasterizer` handles
 full-fidelity whole-map PNGs when it is installed.
@@ -260,9 +261,11 @@ Regenerate a fixture with `pnpm tsx scripts/generate-floorplan-fixture.ts` or
   edits rewrite only `objects`, plus `nextobjectid` on create. BOM, line endings,
   indentation, key order, and number lexemes survive outside that scope. An array that
   gets replaced does get reformatted.
-- **Projections.** Oblique is rejected everywhere. Staggered and hexagonal support
-  summary, region, usage, select, and render; edits fail closed. Isometric is open for
-  edits and for every procedural planner.
+- **Projections.** Staggered and hexagonal support summary, region, usage, select, and
+  render; edits fail closed. Isometric and oblique (Tiled 1.12+, the skewx/skewy shear)
+  are open for edits and for every procedural planner; oblique also creates via
+  `tiled_create_map` and renders with tmxrasterizer-verified placement. A degenerate
+  oblique shear (`skewx*skewy == tilewidth*tileheight`) fails closed everywhere.
 - **TMX and XML.** Reads never reach an edit planner. Writes create a new file in the
   same directory, no-replace, restricted profile. Enum-annotated members and
   out-of-profile structure fail closed, and class properties need an explicit
