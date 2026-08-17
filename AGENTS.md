@@ -82,8 +82,10 @@ and across processes. Internal state lives under `.tiledmcp/` inside the project
 
 Where Tiled 1.12.2's behavior is ambiguous or unimplemented, this server errors rather than
 approximating; `docs/03-architecture.md` and `docs/02-mcp-spec.md` record the source-level
-reasoning per case. Practical consequences: oblique projection is rejected everywhere;
-staggered/hexagonal are read-only; templates, class properties, and out-of-profile XML
+reasoning per case. Practical consequences: staggered/hexagonal are read-only; isometric
+and oblique are editable (storage is orthogonal; only the projection differs — oblique by
+the skewx/skewy shear, with the degenerate `skewx*skewy == tilewidth*tileheight` case
+rejected); templates, class properties, and out-of-profile XML
 structure reject rather than guess. Preserve that stance when extending a planner. Every
 observed GID is fully decoded and validated even on paths that are about to overwrite it.
 
