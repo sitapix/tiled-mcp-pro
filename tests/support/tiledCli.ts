@@ -19,13 +19,14 @@ export const TILED_CLI_PATH =
 /**
  * The Qt platform plugin to run Tiled under.
  *
- * `offscreen` is the right default: it is what CI wants and what
+ * `offscreen` is the right default on Linux: it is what CI wants and what
  * `TiledCliAdapter` itself falls back to. But not every Tiled build ships the
  * offscreen plugin -- the macOS `Tiled.app` bundle carries only `cocoa`, and
- * asking it for `offscreen` aborts with SIGABRT. That looked exactly like
- * "no Tiled installed", silently skipping every conformance test on a machine
- * that has one. Honouring a caller-supplied value lets those runs opt into a
- * platform their build actually has.
+ * asking it for `offscreen` aborts with SIGABRT. Worse, `--version` prints
+ * before Qt initialises the platform plugin, so the probe below passed while
+ * every actual export aborted: 4 conformance tests failed rather than
+ * skipped. On darwin the variable therefore stays unset (cocoa runs CLI work
+ * fine in a login session); a caller-supplied value still wins everywhere.
  *
  * Must stay declared above {@link hasTiledCli}'s initialiser: `probe()` is
  * hoisted but this binding is not, so declaring it below leaves it in the
@@ -33,7 +34,8 @@ export const TILED_CLI_PATH =
  * swallow the ReferenceError as "no Tiled installed".
  */
 const QT_QPA_PLATFORM =
-  process.env.QT_QPA_PLATFORM ?? "offscreen";
+  process.env.QT_QPA_PLATFORM ??
+  (process.platform === "darwin" ? undefined : "offscreen");
 
 export const hasTiledCli: boolean = probe();
 

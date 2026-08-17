@@ -161,7 +161,16 @@ export class TiledCliAdapter {
       LANG: "C",
       LC_ALL: "C",
     };
-    if (!this.environment.QT_QPA_PLATFORM) {
+    // Default to Qt's offscreen platform so exports work without a display —
+    // except on macOS, where the official Tiled.app bundles only the cocoa
+    // plugin and forcing offscreen aborts every invocation with "no Qt
+    // platform plugin could be initialized". Cocoa itself runs fine for CLI
+    // work in a normal login session, so on darwin the variable stays unset
+    // unless the caller provides one.
+    if (
+      !this.environment.QT_QPA_PLATFORM &&
+      process.platform !== "darwin"
+    ) {
       this.environment.QT_QPA_PLATFORM = "offscreen";
     }
   }
