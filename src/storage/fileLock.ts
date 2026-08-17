@@ -109,7 +109,7 @@ async function acquire(lockPath: string, record: LockRecord): Promise<void> {
         if (!isProcessAlive(existing.pid)) {
           throw new TiledMcpError(
             "STALE_FILE_LOCK",
-            `A previous TiledMCP process left a stale lock for ${record.target}. Remove the lock after verifying no editor is active.`,
+            `A previous TiledMCP Pro process left a stale lock for ${record.target}. Remove the lock after verifying no editor is active.`,
             {
               path: record.target,
               stalePid: existing.pid,
@@ -119,7 +119,7 @@ async function acquire(lockPath: string, record: LockRecord): Promise<void> {
         }
         throw new TiledMcpError(
           "FILE_LOCKED",
-          `Another TiledMCP process is editing ${record.target}. Retry after it finishes.`,
+          `Another TiledMCP Pro process is editing ${record.target}. Retry after it finishes.`,
           {
             path: record.target,
             ownerPid: existing.pid,

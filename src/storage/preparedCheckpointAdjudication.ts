@@ -31,7 +31,7 @@ export const PREPARED_CHECKPOINT_COMMIT_WARNING =
   "Operator decision required: the create target currently has the checkpoint after revision, but automatic recovery cannot prove which writer created it. Applying this change commits only the internal audit checkpoint record, which still cannot restore target absence. It does not modify the project asset or run garbage collection.";
 
 export const PREPARED_CHECKPOINT_ABANDON_WARNING =
-  "Operator decision required: applying this change permanently deletes the ambiguous prepared recovery point while leaving the current project asset unchanged. The deleted recovery point cannot be restored through TiledMCP; fail-closed garbage collection may delete only storage no longer referenced by another valid checkpoint.";
+  "Operator decision required: applying this change permanently deletes the ambiguous prepared recovery point while leaving the current project asset unchanged. The deleted recovery point cannot be restored through TiledMCP Pro; fail-closed garbage collection may delete only storage no longer referenced by another valid checkpoint.";
 
 export const PREPARED_CHECKPOINT_COMMIT_GARBAGE_COLLECTION =
   "not-run" as const;

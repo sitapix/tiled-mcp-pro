@@ -12,9 +12,9 @@ export const GUIDE_SECTION_TEMPLATE_URI =
 export const GUIDE_RESOURCE_MIME_TYPE = "text/markdown";
 export const MAX_GUIDE_RESOURCE_BYTES = 128 * 1024;
 
-const GUIDE_SOURCE_TEXT = `# TiledMCP safe editing guide
+const GUIDE_SOURCE_TEXT = `# TiledMCP Pro safe editing guide
 
-TiledMCP inspects and edits Tiled project files under one configured project
+TiledMCP Pro inspects and edits Tiled project files under one configured project
 root. Treat every path as a project-relative POSIX path. Absolute paths and
 \`..\` traversal are rejected.
 
@@ -193,7 +193,7 @@ and render path keep rejecting collection tilesets. Inspect
 ## Filesystem threat model
 
 The direct filesystem backend protects existing-target commits against
-writers that use the same normalized project path and honor the TiledMCP lock.
+writers that use the same normalized project path and honor the TiledMCP Pro lock.
 This contract covers project-asset JSON document targets and explicitly
 excludes server-internal \`.tiledmcp\` state.
 It detects different external bytes visible before the final SHA-256 check,
@@ -271,14 +271,14 @@ covers external TSJ files only, and a successful inline result reports
 
 Root-atlas, per-tile, and image-layer references are normalized and deduplicated
 as one input image set: at most 64 images, 64 MiB of source bytes, 16,000,000
-decoded pixels, and 8192 pixels on either edge of any image. TiledMCP reads a
+decoded pixels, and 8192 pixels on either edge of any image. TiledMCP Pro reads a
 coherent single-file snapshot of every image before and after the render, then
 compares the complete internal path/revision set. Those image revisions are
 deliberately omitted from the public result; \`dependencyRevisions\` remains
 external-TSJ-only.
 
 The rasterizer result is deliberately
-\`snapshotConsistency:"non-atomic-read-set"\`. TiledMCP also rechecks the map
+\`snapshotConsistency:"non-atomic-read-set"\`. TiledMCP Pro also rechecks the map
 and external TSJ revisions before and after the external render, but
 \`tmxrasterizer\` reads live files. Per-file pre/post equality cannot rule out
 an intervening ABA change and does not create an atomic read set. Do not treat
@@ -1958,7 +1958,7 @@ not supported.
   reduce; an operator must explicitly prune that backlog. A generic force
   path remains unsupported.
 - On validation failure, inspect diagnostics before proposing another change.
-- Do not mutate files outside TiledMCP while relying on a previously observed
+- Do not mutate files outside TiledMCP Pro while relying on a previously observed
   revision. Revisions are SHA-256 identities of the exact bytes that were read.
 
 ## Creating a map
@@ -2174,7 +2174,7 @@ export const GUIDE_RESOURCE_REVISION = revisionOf(guideBytes);
 
 if (GUIDE_RESOURCE_SIZE > MAX_GUIDE_RESOURCE_BYTES) {
   throw new Error(
-    `The embedded TiledMCP guide is ${GUIDE_RESOURCE_SIZE} bytes; limit is ${MAX_GUIDE_RESOURCE_BYTES}.`,
+    `The embedded TiledMCP Pro guide is ${GUIDE_RESOURCE_SIZE} bytes; limit is ${MAX_GUIDE_RESOURCE_BYTES}.`,
   );
 }
 
@@ -2189,7 +2189,7 @@ export function registerGuideResource(server: McpServer): void {
     "guide",
     GUIDE_RESOURCE_URI,
     {
-      title: "TiledMCP safe editing guide",
+      title: "TiledMCP Pro safe editing guide",
       description:
         "The full per-tool reference for inspecting, previewing, approving, applying, and verifying safe Tiled map edits. It is large; read one section at a time via tiled://guide/{section} (the Contents block lists the slugs).",
       mimeType: GUIDE_RESOURCE_MIME_TYPE,
@@ -2217,7 +2217,7 @@ export function registerGuideResource(server: McpServer): void {
       list: undefined,
     }),
     {
-      title: "One section of the TiledMCP safe editing guide",
+      title: "One section of the TiledMCP Pro safe editing guide",
       description:
         "A single ## section of tiled://guide, addressed by its slug from the guide's Contents block (for example tiled://guide/conflict-and-failure-handling).",
       mimeType: GUIDE_RESOURCE_MIME_TYPE,

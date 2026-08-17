@@ -1,15 +1,15 @@
 {
-  "name": "tiled-mcp-server",
-  "version": "0.0.2",
+  "name": "tiled-mcp-pro",
+  "version": "0.1.0",
   "description": "A safety-first MCP server for inspecting and editing Tiled maps.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sitapix/TiledMCP.git"
+    "url": "git+https://github.com/sitapix/tiled-mcp-pro.git"
   },
-  "homepage": "https://github.com/sitapix/TiledMCP#readme",
+  "homepage": "https://github.com/sitapix/tiled-mcp-pro#readme",
   "bugs": {
-    "url": "https://github.com/sitapix/TiledMCP/issues"
+    "url": "https://github.com/sitapix/tiled-mcp-pro/issues"
   },
   "keywords": [
     "mcp",
@@ -24,7 +24,7 @@
   ],
   "type": "module",
   "bin": {
-    "tiled-mcp-server": "./dist/index.js"
+    "tiled-mcp-pro": "./dist/index.js"
   },
   "files": [
     "dist"

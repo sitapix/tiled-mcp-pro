@@ -288,7 +288,7 @@ describe("stable application error registry", () => {
         ok: false,
         error: {
           code: "INTERNAL_ERROR",
-          message: "Internal TiledMCP error.",
+          message: "Internal TiledMCP Pro error.",
           details: {},
         },
       },
@@ -380,7 +380,7 @@ describe("stable application error registry", () => {
         ok: false,
         error: {
           code: "INTERNAL_ERROR",
-          message: "Internal TiledMCP error.",
+          message: "Internal TiledMCP Pro error.",
           details: {},
         },
       },

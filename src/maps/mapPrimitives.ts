@@ -4318,7 +4318,7 @@ export function assertOptionalRevision(
   if (revision !== undefined && !REVISION_PATTERN.test(revision)) {
     throw new TiledMcpError(
       "INVALID_ARGUMENT",
-      `${context} must be a SHA-256 revision returned by TiledMCP.`,
+      `${context} must be a SHA-256 revision returned by TiledMCP Pro.`,
       { context },
     );
   }
@@ -4331,7 +4331,7 @@ export function assertRequiredRevision(
   if (typeof revision !== "string" || !REVISION_PATTERN.test(revision)) {
     throw new TiledMcpError(
       "INVALID_ARGUMENT",
-      `${context} must be a SHA-256 revision returned by TiledMCP.`,
+      `${context} must be a SHA-256 revision returned by TiledMCP Pro.`,
       { context },
     );
   }

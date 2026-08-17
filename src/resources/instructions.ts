@@ -9,7 +9,7 @@
  * resource instead -- this text is deliberately short enough to keep in
  * context for a whole session.
  */
-export const TILED_MCP_SERVER_INSTRUCTIONS = `TiledMCP inspects and edits Tiled map assets (TMJ/TSJ/TMX/TSX/TX) under one
+export const TILED_MCP_SERVER_INSTRUCTIONS = `TiledMCP Pro inspects and edits Tiled map assets (TMJ/TSJ/TMX/TSX/TX) under one
 configured project root.
 
 ## Paths and discovery

@@ -387,7 +387,7 @@ type TrustedToolResult = CallToolResult & {
 const trustedToolResults =
   new WeakSet<CallToolResult>();
 const INTERNAL_ERROR_MESSAGE =
-  "Internal TiledMCP error." as const;
+  "Internal TiledMCP Pro error." as const;
 const INTERNAL_ERROR_DETAILS = Object.freeze({});
 const INTERNAL_ERROR_RESULT = Object.freeze({
   ok: false,
@@ -3611,7 +3611,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
     registeredTools,
     "tiled_get_capabilities",
     {
-      title: "Inspect TiledMCP capabilities",
+      title: "Inspect TiledMCP Pro capabilities",
       description:
         "Returns the implemented edit profile, frozen direct-filesystem threat model and operational requirements, and locally available Tiled command-line adapters.",
       inputSchema: z.object({}).strict(),

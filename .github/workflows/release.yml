@@ -1,0 +1,46 @@
+# Publishes tiled-mcp-pro to npm when a GitHub Release is published.
+#
+# Opt-in by design: nothing reaches the registry without a person creating
+# a release. The tag guard stops a release whose tag disagrees with
+# package.json, and `prepublishOnly` reruns the full `pnpm verify` gate at
+# publish time, so a release cut from a broken ref fails closed.
+#
+# Auth: expects an npm automation token in the NPM_TOKEN repository secret
+# (Settings -> Secrets and variables -> Actions). After the first publish,
+# consider switching the package to npm Trusted Publishing (OIDC) on
+# npmjs.com and dropping the token entirely; `id-token: write` is already
+# granted for provenance either way.
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Check the release tag matches package.json
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "Release tag $tag does not match package.json $version" >&2
+            exit 1
+          fi
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm publish --provenance --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

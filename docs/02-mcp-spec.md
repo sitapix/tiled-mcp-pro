@@ -1,4 +1,4 @@
-# TiledMCP Specification
+# TiledMCP Pro Specification
 
 The protocol baseline, shared semantics, and approval model. It is a draft; the interface is
 not frozen.

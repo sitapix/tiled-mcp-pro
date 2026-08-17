@@ -40,7 +40,7 @@ export function registerApplicationErrorResource(
     APPLICATION_ERROR_RESOURCE_URI,
     {
       title:
-        "TiledMCP stable application error registry",
+        "TiledMCP Pro stable application error registry",
       description:
         "The versioned identifiers that may appear at structuredContent.result.error.code, plus compatibility and excluded-surface rules.",
       mimeType:

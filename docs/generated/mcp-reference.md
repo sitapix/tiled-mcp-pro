@@ -2,11 +2,11 @@
 
 # TiledMCP generated MCP reference
 
-Server: `tiled-mcp` `0.0.2`
+Server: `tiled-mcp-pro` `0.1.0`
 
 Protocol baseline: `2025-11-25`
 
-Server instructions: TiledMCP inspects and edits Tiled map assets (TMJ/TSJ/TMX/TSX/TX) under one
+Server instructions: TiledMCP Pro inspects and edits Tiled map assets (TMJ/TSJ/TMX/TSX/TX) under one
 configured project root.
 
 ## Paths and discovery
@@ -252,7 +252,7 @@ The versioned identifiers that may appear at structuredContent.result.error.code
   "_meta": {
     "registryVersion": 1,
     "revision": "sha256:cad493fb51e07b0886c44ff2de763aeb9a43020f398f40733b4876d2b4ae286c",
-    "serverVersion": "0.0.2",
+    "serverVersion": "0.1.0",
     "size": 4013
   },
   "annotations": {
@@ -266,7 +266,7 @@ The versioned identifiers that may appear at structuredContent.result.error.code
   "mimeType": "application/json",
   "name": "application-errors",
   "size": 4013,
-  "title": "TiledMCP stable application error registry",
+  "title": "TiledMCP Pro stable application error registry",
   "uri": "tiled://application-errors"
 }
 ```
@@ -278,9 +278,9 @@ The full per-tool reference for inspecting, previewing, approving, applying, and
 ```json
 {
   "_meta": {
-    "revision": "sha256:4caf494eb02415c150dd8b119a8fc17c7c2a01b0d78e7046067c737c081e7ddf",
-    "serverVersion": "0.0.2",
-    "size": 121770
+    "revision": "sha256:97b16e74043a68f0273e708e57def5c7a16f62fb1fcc17acae50a9d6d7280ba8",
+    "serverVersion": "0.1.0",
+    "size": 121794
   },
   "annotations": {
     "audience": [
@@ -292,15 +292,15 @@ The full per-tool reference for inspecting, previewing, approving, applying, and
   "description": "The full per-tool reference for inspecting, previewing, approving, applying, and verifying safe Tiled map edits. It is large; read one section at a time via tiled://guide/{section} (the Contents block lists the slugs).",
   "mimeType": "text/markdown",
   "name": "guide",
-  "size": 121770,
-  "title": "TiledMCP safe editing guide",
+  "size": 121794,
+  "title": "TiledMCP Pro safe editing guide",
   "uri": "tiled://guide"
 }
 ```
 
 Content contract: `text`, 4013 UTF-8 bytes, revision `sha256:cad493fb51e07b0886c44ff2de763aeb9a43020f398f40733b4876d2b4ae286c`.
 
-Content contract: `text`, 121770 UTF-8 bytes, revision `sha256:4caf494eb02415c150dd8b119a8fc17c7c2a01b0d78e7046067c737c081e7ddf`.
+Content contract: `text`, 121794 UTF-8 bytes, revision `sha256:97b16e74043a68f0273e708e57def5c7a16f62fb1fcc17acae50a9d6d7280ba8`.
 
 Prompts: none.
 

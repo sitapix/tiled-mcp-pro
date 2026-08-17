@@ -1,8 +1,8 @@
-# TiledMCP
+# TiledMCP Pro
 
-[![npm](https://img.shields.io/npm/v/tiled-mcp-server)](https://www.npmjs.com/package/tiled-mcp-server)
+[![npm](https://img.shields.io/npm/v/tiled-mcp-pro)](https://www.npmjs.com/package/tiled-mcp-pro)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![node](https://img.shields.io/node/v/tiled-mcp-server)](https://nodejs.org)
+[![node](https://img.shields.io/node/v/tiled-mcp-pro)](https://nodejs.org)
 
 An MCP server for [Tiled](https://www.mapeditor.org) map projects. A model can read,
 edit, generate, render, and validate `.tmj` / `.tsj` assets on disk without opening the
@@ -31,7 +31,7 @@ Claude Code — no path needed; the server sandboxes itself to the project you h
 (via [MCP roots](https://modelcontextprotocol.io/specification/2025-06-18/client/roots)):
 
 ```bash
-claude mcp add tiled -- npx -y tiled-mcp-server
+claude mcp add tiled -- npx -y tiled-mcp-pro
 ```
 
 Claude Desktop or any client without a working directory — pass the project explicitly:
@@ -43,7 +43,7 @@ Claude Desktop or any client without a working directory — pass the project ex
       "command": "npx",
       "args": [
         "-y",
-        "tiled-mcp-server",
+        "tiled-mcp-pro",
         "--project-dir",
         "/absolute/path/to/your/tiled-project"
       ]
@@ -57,7 +57,7 @@ after that it starts from the cache. To poke at the tools by hand instead, use t
 MCP Inspector:
 
 ```bash
-npx @modelcontextprotocol/inspector npx -y tiled-mcp-server --project-dir /absolute/path/to/your/tiled-project
+npx @modelcontextprotocol/inspector npx -y tiled-mcp-pro --project-dir /absolute/path/to/your/tiled-project
 ```
 
 **3. Try it.** Drop a tilesheet PNG into the project folder and ask your assistant to

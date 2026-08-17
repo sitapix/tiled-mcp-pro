@@ -42,7 +42,7 @@ export function loadConfig(argv: readonly string[], env: NodeJS.ProcessEnv): Ser
 
 export function helpText(): string {
   return [
-    "Usage: tiled-mcp-server [--project-dir <path>] [options]",
+    "Usage: tiled-mcp-pro [--project-dir <path>] [options]",
     "",
     "Options:",
     "  --project-dir <path>  Project sandbox root (env: TILED_PROJECT_DIR).",
