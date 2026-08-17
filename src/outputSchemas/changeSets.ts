@@ -4060,8 +4060,9 @@ export const previewSingleSetTilesToolOutputSchema =
  * A plan of one or more `setTiles`, one per touched tile layer.
  *
  * `planValidationFixes` pushes one `setTiles` per tile layer holding dangling
- * GIDs; `planMergeMap` pushes one per non-empty source tile layer. Both fail
- * closed with `INVALID_ARGUMENT` on an empty array, and
+ * GIDs; `planMergeMap` pushes one per non-empty source tile layer;
+ * `planAutomap` pushes one per output layer the rule engine changed. All
+ * three fail closed with `INVALID_ARGUMENT` on an empty array, and
  * `validateAndSummarizeOperations` caps the length at `MAX_PLAN_OPERATIONS`,
  * which is the 128 declared here. The summary members are the single-operation
  * ones widened to N layers.

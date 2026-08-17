@@ -61,9 +61,10 @@ approve, apply cycle and the revision pinning described later in this guide.
 6. **Run the walls.** When the tileset defines a Wang set, paint corners with
    \`tiled_preview_terrain\` so junctions pick the right tile automatically:
    corners address the corner grid, \`x\` in \`[0, width]\` and \`y\` in
-   \`[0, height]\`, with 1-based colour indexes. Without a Wang set, place walls
-   explicitly with \`tiled_preview_shape\` (rectangle outline for a room, line
-   for a run) or a \`fillRegion\` operation.
+   \`[0, height]\`, with 1-based colour indexes. When the project ships
+   AutoMapping rules instead, run them with \`tiled_preview_automap\`. Without
+   either, place walls explicitly with \`tiled_preview_shape\` (rectangle
+   outline for a room, line for a run) or a \`fillRegion\` operation.
 7. **Place the sprites.** \`createObject\` operations through
    \`tiled_preview_edits\`, \`tiled_preview_template\` for a saved template, or
    \`tiled_preview_prefab\` to stamp a region that already exists elsewhere.
@@ -1006,6 +1007,53 @@ given editor session produced. And where no tile in the set matches a
 required pattern, the paint fails closed naming the cell and the
 pattern, rather than approximating with a near-match — add the missing
 Wang tile instead.
+
+## Apply AutoMapping rules
+
+\`tiled_preview_automap\` runs Tiled-style AutoMapping over the whole
+map: rules maps describe input patterns and the output tiles to place
+where they match, so walls grow shadows, paths acquire edges, and
+terrain transitions resolve themselves in one call. It is a core tool —
+the engine is a native, deterministic port of Tiled 1.12.2's rule
+engine, needed because headless Tiled cannot automap at all. The result
+is an ordinary \`mapEdit\` change set with one \`setTiles\` operation per
+changed output layer, so untouched bytes stay untouched and every
+revision-pin and transaction rule applies unchanged. A run that changes
+nothing fails closed.
+
+\`rulesPath\` names either a rules.txt — with \`#\`/\`//\` comments,
+nested .txt includes, and \`[map name filter]\` lines applying to the
+entries after them — or a single rules map, and defaults to
+\`rules.txt\` next to the map. Rules maps must be finite TMJ in the
+Tiled 1.9+ format, sharing the target's orientation and tile size. The
+full tile-layer rule vocabulary is honored: \`input_\`/\`inputnot_\`/
+\`output_\` layers with index suffixes, the MatchType special tiles
+(Empty, Ignore, NonEmpty, Other, Negate), \`AutoEmpty\`/\`StrictEmpty\`
+and \`Ignore*Flip\` layer properties, the map options (\`DeleteTiles\`,
+\`MatchOutsideMap\`, \`OverflowBorder\`, \`WrapBorder\`, \`MatchInOrder\`,
+\`ModX\`/\`ModY\`/\`OffsetX\`/\`OffsetY\`, \`Probability\`, \`Disabled\`,
+\`IgnoreLock\`, \`NoOverlappingOutput\`), weighted random output indexes,
+and \`rule_options\` rectangles.
+
+Randomness is seeded: where Tiled draws rule-\`Probability\` skips and
+output-index choices from the system RNG, this hashes the \`seed\`
+input with the match coordinates, so the same seed always reproduces
+the same plan — rerun with another seed for another variation. The
+probability semantics are unchanged; only the entropy source is.
+
+It fails closed on the constructs the port would otherwise have to
+guess at: pre-1.9 \`regions_*\` rules maps, object-layer outputs,
+output layers carrying custom properties (Tiled copies those onto the
+target), output layers the target lacks (create them with
+\`tiled_create_layer\` first — automapping never invents layers),
+regular tiles from tilesets the target does not reference (attach them
+with \`tiled_add_tileset_to_map\`), TMX/TSX rules sources (save as
+TMJ/TSJ), and infinite targets. Where Tiled would log a warning and
+silently ignore something — an unknown property, an unrecognized layer
+name — this errors instead: a silently dropped \`outpt_Ground\` typo is
+exactly the failure the warnings exist to catch, and no warning channel
+reaches you. Prefix a rules-map layer's name with \`//\` to comment it
+out deliberately.
 
 ## Edit Wang terrain sets
 

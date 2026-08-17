@@ -1048,6 +1048,20 @@
           "asset_0123456789abcdef01234567": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
         }
       }
+    },
+    {
+      "name": "tiled_preview_automap",
+      "profile": "core",
+      "purpose": "Run the project's AutoMapping rules over the whole map with the native deterministic rule engine and stage the changed cells as a mapEdit change set.",
+      "arguments": {
+        "mapPath": "maps/example.tmj",
+        "rulesPath": "maps/rules.txt",
+        "seed": 7,
+        "expectedMapRevision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "expectedDependencyRevisions": {
+          "asset_0123456789abcdef01234567": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        }
+      }
     }
   ]
 }

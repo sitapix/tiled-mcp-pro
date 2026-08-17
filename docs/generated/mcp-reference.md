@@ -99,8 +99,8 @@ Schema-valid calls below use fixed placeholders and must never be sent as-is. Re
 
 ## Surface profiles
 
-- `core`: 50 tools
-- `with-tmxrasterizer`: 52 tools; adds `tiled_render_map` only after a successful TmxRasterizer version probe
+- `core`: 51 tools
+- `with-tmxrasterizer`: 53 tools; adds `tiled_render_map` only after a successful TmxRasterizer version probe
 
 ## Stable TiledMCP error codes
 
@@ -278,9 +278,9 @@ The full per-tool reference for inspecting, previewing, approving, applying, and
 ```json
 {
   "_meta": {
-    "revision": "sha256:994c5e97704149e566d341e0c3bdbbc5a07bb3ff6b9cea5bdb898f51241970dd",
+    "revision": "sha256:4caf494eb02415c150dd8b119a8fc17c7c2a01b0d78e7046067c737c081e7ddf",
     "serverVersion": "0.0.2",
-    "size": 117733
+    "size": 121770
   },
   "annotations": {
     "audience": [
@@ -292,7 +292,7 @@ The full per-tool reference for inspecting, previewing, approving, applying, and
   "description": "The full per-tool reference for inspecting, previewing, approving, applying, and verifying safe Tiled map edits. It is large; read one section at a time via tiled://guide/{section} (the Contents block lists the slugs).",
   "mimeType": "text/markdown",
   "name": "guide",
-  "size": 117733,
+  "size": 121770,
   "title": "TiledMCP safe editing guide",
   "uri": "tiled://guide"
 }
@@ -300,7 +300,7 @@ The full per-tool reference for inspecting, previewing, approving, applying, and
 
 Content contract: `text`, 4013 UTF-8 bytes, revision `sha256:cad493fb51e07b0886c44ff2de763aeb9a43020f398f40733b4876d2b4ae286c`.
 
-Content contract: `text`, 117733 UTF-8 bytes, revision `sha256:994c5e97704149e566d341e0c3bdbbc5a07bb3ff6b9cea5bdb898f51241970dd`.
+Content contract: `text`, 121770 UTF-8 bytes, revision `sha256:4caf494eb02415c150dd8b119a8fc17c7c2a01b0d78e7046067c737c081e7ddf`.
 
 Prompts: none.
 
@@ -1153,6 +1153,7 @@ Output schema:
               "enum": [
                 "finite-orthogonal-tmj-external-atlas-tsj",
                 "isometric-tmj-read-only",
+                "oblique-tmj-read-only",
                 "staggered-hexagonal-tmj-read-only"
               ],
               "type": "string"
@@ -5592,6 +5593,7 @@ Output schema:
                     "orthogonal",
                     "isometric",
                     "staggered",
+                    "oblique",
                     "hexagonal"
                   ],
                   "type": "string"
@@ -5602,6 +5604,16 @@ Output schema:
                     "distinct-from-screen"
                   ],
                   "type": "string"
+                },
+                "skewX": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "skewY": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
                 },
                 "staggerAxis": {
                   "enum": [
@@ -7014,7 +7026,7 @@ Output schema:
 
 Availability: `core`
 
-Directly creates a new empty TMJ as the sole additive no-preview mutation exception. The caller must confirm the target path; parent directories must exist, and any existing destination—including identical bytes—is never overwritten or treated as success.
+Directly creates a new empty TMJ as the sole additive no-preview mutation exception. The caller must confirm the target path; parent directories must exist, and any existing destination—including identical bytes—is never overwritten or treated as success. orientation defaults to orthogonal; oblique (Tiled 1.12+) additionally accepts integer skewX/skewY — the pixel shear per tile row and column, written as the map's skewx/skewy members and omitted when 0 to match Tiled's canonical form. A degenerate shear (skewX * skewY equal to tileWidth * tileHeight) fails closed because it has no screen inverse.
 
 Annotations:
 
@@ -7065,6 +7077,23 @@ Input schema:
       "maxLength": 4096,
       "minLength": 1,
       "type": "string"
+    },
+    "orientation": {
+      "enum": [
+        "orthogonal",
+        "oblique"
+      ],
+      "type": "string"
+    },
+    "skewX": {
+      "maximum": 16384,
+      "minimum": -16384,
+      "type": "integer"
+    },
+    "skewY": {
+      "maximum": 16384,
+      "minimum": -16384,
+      "type": "integer"
     },
     "tileHeight": {
       "exclusiveMinimum": 0,
@@ -10091,6 +10120,74 @@ Output schema:
               ],
               "type": "object"
             },
+            "automapCapabilities": {
+              "additionalProperties": false,
+              "properties": {
+                "cliParity": {
+                  "const": "impossible-headless-see-automap-canary",
+                  "type": "string"
+                },
+                "determinism": {
+                  "const": "seed-and-coordinate-hash-not-tiled-rng",
+                  "type": "string"
+                },
+                "engine": {
+                  "const": "native-port-of-tiled-1.12.2-automapper",
+                  "type": "string"
+                },
+                "matchTypeResolution": {
+                  "const": "direct-tile-property-no-class-inheritance",
+                  "type": "string"
+                },
+                "ruleFormat": {
+                  "const": "tiled-1.9-plus-tmj-only",
+                  "type": "string"
+                },
+                "unknownRulesMapProperties": {
+                  "const": "rejected-not-warned",
+                  "type": "string"
+                },
+                "unsupported": {
+                  "items": [
+                    {
+                      "const": "legacy-regions-layers",
+                      "type": "string"
+                    },
+                    {
+                      "const": "object-layer-outputs",
+                      "type": "string"
+                    },
+                    {
+                      "const": "output-layer-property-copying",
+                      "type": "string"
+                    },
+                    {
+                      "const": "output-layer-autocreation",
+                      "type": "string"
+                    },
+                    {
+                      "const": "tmx-tsx-rules-sources",
+                      "type": "string"
+                    },
+                    {
+                      "const": "infinite-targets",
+                      "type": "string"
+                    }
+                  ],
+                  "type": "array"
+                }
+              },
+              "required": [
+                "engine",
+                "cliParity",
+                "ruleFormat",
+                "determinism",
+                "matchTypeResolution",
+                "unsupported",
+                "unknownRulesMapProperties"
+              ],
+              "type": "object"
+            },
             "checkpointCapabilities": {
               "additionalProperties": false,
               "properties": {
@@ -11032,6 +11129,14 @@ Output schema:
                 {
                   "const": "finite-orthogonal-tmj-external-atlas-tsj",
                   "type": "string"
+                },
+                {
+                  "const": "isometric-tmj-editable-core",
+                  "type": "string"
+                },
+                {
+                  "const": "oblique-tmj-editable-core",
+                  "type": "string"
                 }
               ],
               "type": "array"
@@ -11873,6 +11978,22 @@ Output schema:
                   "const": 67108864,
                   "type": "number"
                 },
+                "maxAutomapMatchOperations": {
+                  "const": 50000000,
+                  "type": "number"
+                },
+                "maxAutomapRuleMaps": {
+                  "const": 64,
+                  "type": "number"
+                },
+                "maxAutomapRules": {
+                  "const": 1024,
+                  "type": "number"
+                },
+                "maxAutomapRulesFiles": {
+                  "const": 16,
+                  "type": "number"
+                },
                 "maxChangeSetCellWrites": {
                   "const": 100000,
                   "type": "number"
@@ -12302,6 +12423,10 @@ Output schema:
                 "maxCreateMapTileEdge",
                 "maxRegionCells",
                 "maxChangeSetCellWrites",
+                "maxAutomapRulesFiles",
+                "maxAutomapRuleMaps",
+                "maxAutomapRules",
+                "maxAutomapMatchOperations",
                 "maxPendingChangeSetCellWrites",
                 "maxPendingObjectShapePoints",
                 "maxPendingTextObjectPayloadBytes",
@@ -12445,6 +12570,23 @@ Output schema:
                   "const": "1.10",
                   "type": "string"
                 },
+                "maxSkewMagnitude": {
+                  "const": 16384,
+                  "type": "number"
+                },
+                "orientations": {
+                  "items": [
+                    {
+                      "const": "orthogonal",
+                      "type": "string"
+                    },
+                    {
+                      "const": "oblique",
+                      "type": "string"
+                    }
+                  ],
+                  "type": "array"
+                },
                 "parentDirectory": {
                   "const": "must-already-exist",
                   "type": "string"
@@ -12464,6 +12606,8 @@ Output schema:
               },
               "required": [
                 "profile",
+                "orientations",
+                "maxSkewMagnitude",
                 "mapFormatVersion",
                 "tiledCompatibilityBaseline",
                 "commitMode",
@@ -13190,6 +13334,10 @@ Output schema:
                     },
                     {
                       "const": "staggered",
+                      "type": "string"
+                    },
+                    {
+                      "const": "oblique",
                       "type": "string"
                     },
                     {
@@ -14157,6 +14305,10 @@ Output schema:
                       "type": "string"
                     },
                     {
+                      "const": "tiled_preview_automap",
+                      "type": "string"
+                    },
+                    {
                       "const": "tiled_apply_change_set",
                       "type": "string"
                     }
@@ -14359,6 +14511,10 @@ Output schema:
                     },
                     {
                       "const": "tiled_preview_terrain",
+                      "type": "string"
+                    },
+                    {
+                      "const": "tiled_preview_automap",
                       "type": "string"
                     },
                     {
@@ -14571,6 +14727,10 @@ Output schema:
                       "type": "string"
                     },
                     {
+                      "const": "tiled_preview_automap",
+                      "type": "string"
+                    },
+                    {
                       "const": "tiled_apply_change_set",
                       "type": "string"
                     },
@@ -14777,6 +14937,10 @@ Output schema:
                     },
                     {
                       "const": "tiled_preview_terrain",
+                      "type": "string"
+                    },
+                    {
+                      "const": "tiled_preview_automap",
                       "type": "string"
                     },
                     {
@@ -16392,6 +16556,7 @@ Output schema:
             "usageAnalysisCapabilities",
             "tilesetReferenceCapabilities",
             "layerCreationCapabilities",
+            "automapCapabilities",
             "nativePreviewCapabilities",
             "rasterMapCapabilities",
             "limits",
@@ -16978,6 +17143,7 @@ Output schema:
                     "finite-orthogonal-tmj-external-atlas-tsj",
                     "infinite-orthogonal-tmj-read-only-chunked",
                     "isometric-tmj-editable-core",
+                    "oblique-tmj-editable-core",
                     "staggered-hexagonal-tmj-read-only"
                   ],
                   "type": "string"
@@ -17066,6 +17232,7 @@ Output schema:
                     "orthogonal",
                     "isometric",
                     "staggered",
+                    "oblique",
                     "hexagonal"
                   ],
                   "type": "string"
@@ -17086,6 +17253,16 @@ Output schema:
                 "revision": {
                   "pattern": "^sha256:[0-9a-f]{64}$",
                   "type": "string"
+                },
+                "skewX": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "skewY": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
                 },
                 "staggerAxis": {
                   "enum": [
@@ -27861,6 +28038,582 @@ Output schema:
                 "details": {
                   "additionalProperties": {
                     "$ref": "#/definitions/__schema1"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "message": {
+                  "maxLength": 4096,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "details"
+              ],
+              "type": "object"
+            },
+            "ok": {
+              "const": false,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "ok",
+            "error"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "required": [
+    "result"
+  ],
+  "type": "object"
+}
+```
+
+### `tiled_preview_automap`
+
+Availability: `core`
+
+Runs Tiled-style AutoMapping over the whole map with a native, deterministic port of Tiled 1.12.2's rule engine — a core tool needing no Tiled install — and returns an ordinary mapEdit change set carrying one setTiles operation per changed output layer, so untouched fragments keep their exact bytes and every preview, revision-pin, and transaction rule applies unchanged. rulesPath names a rules.txt (with includes, comments, and [map name filter] lines) or a single rules map, defaulting to rules.txt beside the map; rules maps must be finite TMJ in the Tiled 1.9+ format, sharing the target's orientation and tile size, and every input_/inputnot_/output_ layer convention, MatchType special tile (Empty, Ignore, NonEmpty, Other, Negate), map option (DeleteTiles, MatchOutsideMap, OverflowBorder, WrapBorder, MatchInOrder, ModX/ModY/OffsetX/OffsetY, Probability, Disabled, IgnoreLock, NoOverlappingOutput), AutoEmpty/StrictEmpty and Ignore*Flip layer properties, output-index randomness, and rule_options rectangles is honored. Where Tiled draws randomness from the system, this hashes the seed input with the match coordinates, so the same seed always yields the same plan. Fails closed on pre-1.9 regions_* rules maps, object-layer outputs, output layers carrying custom properties, output layers missing from the target (create them with tiled_create_layer), tilesets the target does not reference (attach with tiled_add_tileset_to_map), and unknown rules-map properties that Tiled would merely warn about. A run that changes nothing fails closed.
+
+Annotations:
+
+```json
+{
+  "destructiveHint": false,
+  "idempotentHint": false,
+  "openWorldHint": false,
+  "readOnlyHint": true,
+  "title": "Preview a local Tiled map change"
+}
+```
+
+Example purpose: Run the project's AutoMapping rules over the whole map with the native deterministic rule engine and stage the changed cells as a mapEdit change set.
+
+```json
+{
+  "arguments": {
+    "expectedDependencyRevisions": {
+      "asset_0123456789abcdef01234567": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    "expectedMapRevision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "mapPath": "maps/example.tmj",
+    "rulesPath": "maps/rules.txt",
+    "seed": 7
+  },
+  "name": "tiled_preview_automap"
+}
+```
+
+Input schema:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "expectedDependencyRevisions": {
+      "additionalProperties": {
+        "description": "SHA-256 revision returned by a read or preview",
+        "pattern": "^sha256:[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "description": "The complete dependencyRevisions record from the same read that produced expectedMapRevision (assetId -> sha256 revision); pass the two together, unchanged. A stale or partial record fails closed",
+      "propertyNames": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "expectedMapRevision": {
+      "description": "SHA-256 revision returned by a read or preview",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "mapPath": {
+      "description": "Canonical project-relative POSIX path; absolute paths and .. are forbidden",
+      "maxLength": 4096,
+      "minLength": 1,
+      "type": "string"
+    },
+    "rulesPath": {
+      "description": "A rules.txt or a single TMJ rules map. Defaults to rules.txt next to the map.",
+      "maxLength": 4096,
+      "minLength": 1,
+      "type": "string"
+    },
+    "seed": {
+      "description": "Determinism seed for rule Probability and output-index choices. Defaults to 0.",
+      "maximum": 9007199254740991,
+      "minimum": -9007199254740991,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "mapPath",
+    "expectedMapRevision",
+    "expectedDependencyRevisions"
+  ],
+  "type": "object"
+}
+```
+
+Output schema:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "ChangeSetPositiveId": {
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    },
+    "ChangeSetPositiveRect": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "x": {
+          "$ref": "#/definitions/ChangeSetSafeInteger"
+        },
+        "y": {
+          "$ref": "#/definitions/ChangeSetSafeInteger"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "type": "object"
+    },
+    "ChangeSetSafeInteger": {
+      "maximum": 9007199254740991,
+      "minimum": -9007199254740991,
+      "type": "integer"
+    },
+    "ChangeSetTileRef": {
+      "additionalProperties": false,
+      "properties": {
+        "localId": {
+          "maximum": 268435455,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tileset": {
+          "additionalProperties": false,
+          "properties": {
+            "assetId": {
+              "pattern": "^asset_[0-9a-f]{24}$",
+              "type": "string"
+            },
+            "kind": {
+              "const": "external",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "assetId"
+          ],
+          "type": "object"
+        },
+        "transform": {
+          "additionalProperties": false,
+          "properties": {
+            "flipD": {
+              "type": "boolean"
+            },
+            "flipH": {
+              "type": "boolean"
+            },
+            "flipV": {
+              "type": "boolean"
+            },
+            "kind": {
+              "const": "orthogonal",
+              "type": "string"
+            },
+            "rawFlags": {
+              "maximum": 4294967295,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "tileset",
+        "localId"
+      ],
+      "type": "object"
+    },
+    "__schema0": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "items": {
+            "$ref": "#/definitions/__schema0"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/definitions/__schema0"
+          },
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "properties": {
+    "result": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "changeSetId": {
+              "pattern": "^changeset:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "createdAt": {
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+              "type": "string"
+            },
+            "dependencyRevisions": {
+              "additionalProperties": {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "propertyNames": {
+                "pattern": "^asset_[0-9a-f]{24}$",
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "expectedRevision": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "expiresAt": {
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+              "type": "string"
+            },
+            "kind": {
+              "const": "mapEdit",
+              "type": "string"
+            },
+            "mapPath": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "operations": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "bounds": {
+                    "$ref": "#/definitions/ChangeSetPositiveRect"
+                  },
+                  "cellCount": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "layerId": {
+                    "$ref": "#/definitions/ChangeSetPositiveId"
+                  },
+                  "omittedCellCount": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "sample": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "tile": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/definitions/ChangeSetTileRef"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "x": {
+                          "$ref": "#/definitions/ChangeSetSafeInteger"
+                        },
+                        "y": {
+                          "$ref": "#/definitions/ChangeSetSafeInteger"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "tile"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 8,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "type": {
+                    "const": "setTiles",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "layerId",
+                  "cellCount",
+                  "bounds",
+                  "sample",
+                  "omittedCellCount"
+                ],
+                "type": "object"
+              },
+              "maxItems": 128,
+              "minItems": 1,
+              "type": "array"
+            },
+            "planDigest": {
+              "pattern": "^changeset:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "snapshotConsistency": {
+              "const": "non-atomic-read-set",
+              "type": "string"
+            },
+            "summary": {
+              "additionalProperties": false,
+              "properties": {
+                "affectedLayerIds": {
+                  "items": {
+                    "$ref": "#/definitions/ChangeSetPositiveId"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "affectedObjectLayerIds": {
+                  "items": [],
+                  "type": "array"
+                },
+                "affectedTileLayerIds": {
+                  "items": {
+                    "$ref": "#/definitions/ChangeSetPositiveId"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "cellWrites": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "createdObjectIds": {
+                  "items": [],
+                  "type": "array"
+                },
+                "deletedObjectIds": {
+                  "items": [],
+                  "type": "array"
+                },
+                "operationCount": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "updatedObjectIds": {
+                  "items": [],
+                  "type": "array"
+                }
+              },
+              "required": [
+                "operationCount",
+                "cellWrites",
+                "affectedLayerIds",
+                "affectedTileLayerIds",
+                "affectedObjectLayerIds",
+                "createdObjectIds",
+                "updatedObjectIds",
+                "deletedObjectIds"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "kind",
+            "changeSetId",
+            "planDigest",
+            "mapPath",
+            "expectedRevision",
+            "dependencyRevisions",
+            "snapshotConsistency",
+            "createdAt",
+            "expiresAt",
+            "operations",
+            "summary"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "error": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "enum": [
+                    "ASSET_REGISTRY_CORRUPT",
+                    "ASSET_REGISTRY_LIMIT_EXCEEDED",
+                    "CHANGE_SET_LIMIT_EXCEEDED",
+                    "CHANGE_SET_NOT_FOUND",
+                    "CHANGE_SET_OWNED",
+                    "CHANGE_SET_REPLAY_MISMATCH",
+                    "CHANGE_SET_TAMPERED",
+                    "CHECKPOINT_CHANGED",
+                    "CHECKPOINT_CORRUPT",
+                    "CHECKPOINT_NOT_COMMITTED",
+                    "CHECKPOINT_NOT_FOUND",
+                    "CHECKPOINT_QUOTA_EXCEEDED",
+                    "CHECKPOINT_STATE_CONFLICT",
+                    "DEPENDENCY_REVISION_CONFLICT",
+                    "DOCUMENT_CHANGED_DURING_READ",
+                    "DOCUMENT_TOO_LARGE",
+                    "DUPLICATE_JSON_KEY",
+                    "DUPLICATE_LAYER_TARGET_IN_SOURCE_SUBTREE",
+                    "EXTERNAL_REFERENCE_NOT_ALLOWED",
+                    "FILE_ALREADY_EXISTS",
+                    "FILE_IN_USE",
+                    "FILE_LOCKED",
+                    "FILE_LOCK_CORRUPT",
+                    "FILE_NOT_FOUND",
+                    "GID_OUT_OF_RANGE",
+                    "GID_RANGE_EXHAUSTED",
+                    "IMAGE_CHANGED_DURING_READ",
+                    "IMAGE_DIMENSIONS_EXCEEDED",
+                    "IMAGE_ENCODING_FAILED",
+                    "IMAGE_TOO_LARGE",
+                    "INTERNAL_ERROR",
+                    "INVALID_ARGUMENT",
+                    "INVALID_DOCUMENT",
+                    "INVALID_GID",
+                    "INVALID_JSON",
+                    "INVALID_PROJECT_PATH",
+                    "INVALID_TILESET_ATLAS",
+                    "INVALID_TILESET_IMAGE",
+                    "INVALID_TILE_DATA",
+                    "INVALID_TILE_TRANSFORM",
+                    "JSON_NESTING_LIMIT",
+                    "LAYER_DEPTH_EXCEEDED",
+                    "LAYER_HAS_DESCENDANTS",
+                    "LAYER_ID_EXHAUSTED",
+                    "LAYER_INDEX_OUT_OF_RANGE",
+                    "LAYER_LIMIT_EXCEEDED",
+                    "LAYER_MOVE_CYCLE",
+                    "LAYER_NOT_FOUND",
+                    "LAYER_TYPE_MISMATCH",
+                    "NEXT_LAYER_ID_INVALID",
+                    "NEXT_OBJECT_ID_INVALID",
+                    "OBJECT_ID_EXHAUSTED",
+                    "OBJECT_IN_USE",
+                    "OBJECT_LIMIT_EXCEEDED",
+                    "OBJECT_NOT_FOUND",
+                    "OBJECT_REFERENCE_NOT_FOUND",
+                    "OBJECT_SHAPE_MISMATCH",
+                    "OVERLAY_TOO_DENSE",
+                    "PAGE_OUT_OF_RANGE",
+                    "PARENT_DIRECTORY_NOT_FOUND",
+                    "PATH_OUTSIDE_ROOT",
+                    "PREVIEW_DIMENSIONS_EXCEEDED",
+                    "PREVIEW_REGION_REQUIRED",
+                    "RASTER_TEMP_CLEANUP_FAILED",
+                    "REGION_OUT_OF_BOUNDS",
+                    "RESERVED_PROJECT_PATH",
+                    "RESULT_LIMIT_EXCEEDED",
+                    "REVERT_WOULD_DELETE",
+                    "REVISION_CONFLICT",
+                    "STALE_FILE_LOCK",
+                    "SYMLINK_NOT_ALLOWED",
+                    "TILESET_ALREADY_REFERENCED",
+                    "TILESET_GID_RANGE_OVERLAP",
+                    "TILESET_IMAGE_DIMENSION_MISMATCH",
+                    "TILESET_IN_USE",
+                    "TILESET_NOT_FOUND",
+                    "TILESET_NOT_IN_MAP",
+                    "TILE_ID_OUT_OF_RANGE",
+                    "TMXRASTERIZER_FAILED",
+                    "TMXRASTERIZER_NOT_EXECUTABLE",
+                    "TMXRASTERIZER_NOT_FOUND",
+                    "TMXRASTERIZER_OUTPUT_INVALID",
+                    "TMXRASTERIZER_OUTPUT_LIMIT",
+                    "TMXRASTERIZER_OUTPUT_MISSING",
+                    "TMXRASTERIZER_TIMEOUT",
+                    "UNSAFE_JSON_NUMBER",
+                    "UNSAFE_RENDER_REFERENCE",
+                    "UNSAFE_SVG",
+                    "UNSORTED_TILESET_REFERENCES",
+                    "UNSUPPORTED_DUPLICATE_REFERENCE_ANALYSIS",
+                    "UNSUPPORTED_DUPLICATE_TEMPLATE",
+                    "UNSUPPORTED_FORMAT",
+                    "UNSUPPORTED_IMAGE_FORMAT",
+                    "UNSUPPORTED_MAP_PROFILE",
+                    "UNSUPPORTED_OBJECT_PROFILE",
+                    "UNSUPPORTED_OBJECT_REFERENCE_ANALYSIS",
+                    "UNSUPPORTED_PROPERTY_QUERY",
+                    "UNSUPPORTED_PROPERTY_WRITE",
+                    "UNSUPPORTED_REFERENCE_SCAN",
+                    "UNSUPPORTED_RENDER_FEATURE",
+                    "UNSUPPORTED_RENDER_LAYER",
+                    "UNSUPPORTED_RESIZE_LAYER_BOUNDS",
+                    "UNSUPPORTED_RESIZE_TEMPLATE",
+                    "UNSUPPORTED_TILESET",
+                    "UNSUPPORTED_TILESET_REMOVAL_TEMPLATE",
+                    "UNSUPPORTED_TILE_ENCODING"
+                  ],
+                  "type": "string"
+                },
+                "details": {
+                  "additionalProperties": {
+                    "$ref": "#/definitions/__schema0"
                   },
                   "propertyNames": {
                     "type": "string"
@@ -51764,6 +52517,285 @@ Output schema:
                 },
                 "renderProfile": {
                   "const": "staggered-hexagonal-tile-layers-v1",
+                  "type": "string"
+                },
+                "scale": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "sha256": {
+                  "pattern": "^sha256:[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "snapshotConsistency": {
+                  "const": "non-atomic-read-set",
+                  "type": "string"
+                },
+                "sources": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "image": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "path": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "revision": {
+                            "pattern": "^sha256:[0-9a-f]{64}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "revision"
+                        ],
+                        "type": "object"
+                      },
+                      "tileset": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "assetId": {
+                            "pattern": "^asset_[0-9a-f]{24}$",
+                            "type": "string"
+                          },
+                          "path": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "revision": {
+                            "pattern": "^sha256:[0-9a-f]{64}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "assetId",
+                          "path",
+                          "revision"
+                        ],
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "tileset",
+                      "image"
+                    ],
+                    "type": "object"
+                  },
+                  "maxItems": 64,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "mimeType",
+                "pixelSize",
+                "byteLength",
+                "sha256",
+                "map",
+                "dependencyRevisions",
+                "region",
+                "scale",
+                "projection",
+                "layers",
+                "omittedObjectLayerIds",
+                "sources",
+                "renderProfile",
+                "snapshotConsistency"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "byteLength": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "dependencyRevisions": {
+                  "additionalProperties": {
+                    "pattern": "^sha256:[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "propertyNames": {
+                    "pattern": "^asset_[0-9a-f]{24}$",
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "layers": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "maxLength": 128,
+                        "type": "string"
+                      },
+                      "nameTruncated": {
+                        "const": true,
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  "maxItems": 128,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "map": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "revision": {
+                      "pattern": "^sha256:[0-9a-f]{64}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "revision"
+                  ],
+                  "type": "object"
+                },
+                "mimeType": {
+                  "const": "image/png",
+                  "type": "string"
+                },
+                "omittedObjectLayerIds": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "maxItems": 128,
+                  "type": "array"
+                },
+                "pixelSize": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "height": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "width": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "width",
+                    "height"
+                  ],
+                  "type": "object"
+                },
+                "projection": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "orientation": {
+                      "const": "oblique",
+                      "type": "string"
+                    },
+                    "originPixel": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "x": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "y": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ],
+                      "type": "object"
+                    },
+                    "skewX": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    "skewY": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    "tileHeight": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "tileWidth": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "orientation",
+                    "tileWidth",
+                    "tileHeight",
+                    "skewX",
+                    "skewY",
+                    "originPixel"
+                  ],
+                  "type": "object"
+                },
+                "region": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "height": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "width": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "x": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "y": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y",
+                    "width",
+                    "height"
+                  ],
+                  "type": "object"
+                },
+                "renderProfile": {
+                  "const": "oblique-tile-layers-v1",
                   "type": "string"
                 },
                 "scale": {

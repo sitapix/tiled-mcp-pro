@@ -303,6 +303,10 @@ import {
 import {
   DEFAULT_USAGE_TOP_TILE_LIMIT,
   MAX_ABSOLUTE_OBJECT_NUMBER,
+  MAX_AUTOMAP_MATCH_OPERATIONS,
+  MAX_AUTOMAP_RULES,
+  MAX_AUTOMAP_RULES_FILES,
+  MAX_AUTOMAP_RULE_MAPS,
   MAX_CREATE_MAP_DIMENSION,
   MAX_CREATE_MAP_SKEW,
   MAX_CREATE_MAP_TILE_EDGE,
@@ -314,6 +318,15 @@ import {
   MAX_TOTAL_DEPENDENCY_BYTES,
   MAX_USAGE_TOP_TILE_LIMIT,
 } from "./mapDomain.js";
+import {
+  type AutomapRulesMapModel,
+  type AutomapTargetLayer,
+  type AutomapTilesetSlot,
+  compileAutomapMapNameFilter,
+  parseAutomapRulesMap,
+  readTileMatchTypes,
+  runAutomap,
+} from "./automap.js";
 import type {
   AnalyzeUsageInput,
   CreateMapInput,
@@ -426,6 +439,10 @@ import type { Revision } from "../storage/revision.js";
 export {
   DEFAULT_USAGE_TOP_TILE_LIMIT,
   MAX_ADD_TILESET_GID_SCANS,
+  MAX_AUTOMAP_MATCH_OPERATIONS,
+  MAX_AUTOMAP_RULES,
+  MAX_AUTOMAP_RULES_FILES,
+  MAX_AUTOMAP_RULE_MAPS,
   MAX_CELL_WRITES,
   MAX_MERGE_OFFSET,
   MAX_CREATE_MAP_DIMENSION,
@@ -11816,6 +11833,593 @@ export class MapService {
       ...unsignedPlan,
       id: planId(unsignedPlan),
     };
+  }
+
+  /**
+   * Native AutoMapping: reads a rules.txt chain or a single TMJ rules map,
+   * runs the deterministic port of Tiled 1.12.2's rule engine in
+   * `automap.ts` against the pinned target map, and turns the exact cell
+   * diff into an ordinary setTiles map-edit change set — so apply needs no
+   * new machinery and untouched fragments keep their exact bytes.
+   *
+   * Delegating to Tiled itself is impossible headlessly (see
+   * `tests/automapCanary.test.ts`), so unlike terrain painting there is no
+   * CLI parity path; the engine's fidelity rests on the port being written
+   * against the 1.12.2 sources and on its own fixture suite.
+   */
+  async planAutomap(input: {
+    mapPath: string;
+    rulesPath?: string | undefined;
+    seed?: number | undefined;
+    expectedMapRevision: string;
+    expectedDependencyRevisions: Record<
+      string,
+      string
+    >;
+  }): Promise<MapEditPlan> {
+    assertRequiredRevision(
+      input.expectedMapRevision,
+      "expectedMapRevision",
+    );
+    const seed = input.seed ?? 0;
+    assertSafeInteger(seed, "seed");
+
+    const context = await this.loadEditableContext(
+      input.mapPath,
+      {
+        // Automapping matches and writes the abstract cell grid, which is
+        // orientation-independent; the rules map must share the target's
+        // orientation, which the loader below enforces.
+        allowIsometric: true,
+        expectedMapRevision:
+          input.expectedMapRevision,
+        expectedDependencyRevisions:
+          input.expectedDependencyRevisions,
+      },
+    );
+    assertDependencyRevisions(
+      input.expectedDependencyRevisions,
+      context.dependencyRevisions,
+    );
+
+    const rulesPath =
+      input.rulesPath === undefined
+        ? this.resolver.normalize(
+            posix.join(
+              posix.dirname(context.loaded.path),
+              "rules.txt",
+            ),
+          )
+        : this.resolver.normalize(input.rulesPath);
+
+    // Gather rule-map references, walking rules.txt includes the way
+    // `AutomappingManager::loadRulesFile` does: a `[filter]` line applies to
+    // the lines after it, propagates into includes, and changes inside an
+    // include are scoped to that include.
+    interface RuleMapReference {
+      path: string;
+      filter: RegExp | null;
+    }
+    const references: RuleMapReference[] = [];
+    const parsingStack = new Set<string>();
+    let rulesFileCount = 0;
+    const loadRulesFile = async (
+      path: string,
+      inheritedFilter: RegExp | null,
+    ): Promise<void> => {
+      if (parsingStack.has(path)) {
+        throw new TiledMcpError(
+          "INVALID_ARGUMENT",
+          `${path} includes itself, directly or through another rules file.`,
+          { path },
+        );
+      }
+      rulesFileCount += 1;
+      if (
+        rulesFileCount > MAX_AUTOMAP_RULES_FILES
+      ) {
+        throw new TiledMcpError(
+          "RESULT_LIMIT_EXCEEDED",
+          `Automapping read more than ${MAX_AUTOMAP_RULES_FILES} rules files.`,
+          { limit: MAX_AUTOMAP_RULES_FILES },
+        );
+      }
+      parsingStack.add(path);
+      try {
+        const snapshot =
+          await this.store.readSnapshot(path);
+        let filter = inheritedFilter;
+        for (const rawLine of snapshot.source
+          .toString("utf8")
+          .split(/\r?\n/u)) {
+          const line = rawLine.trim();
+          if (
+            line === "" ||
+            line.startsWith("#") ||
+            line.startsWith("//")
+          ) {
+            continue;
+          }
+          if (
+            line.startsWith("[") &&
+            line.endsWith("]")
+          ) {
+            filter = compileAutomapMapNameFilter(
+              line.slice(1, -1),
+              path,
+            );
+            continue;
+          }
+          const resolved =
+            await this.resolver.resolveReference(
+              path,
+              line,
+            );
+          if (/\.txt$/iu.test(resolved)) {
+            await loadRulesFile(resolved, filter);
+            continue;
+          }
+          references.push({
+            path: resolved,
+            filter,
+          });
+        }
+      } finally {
+        parsingStack.delete(path);
+      }
+    };
+    if (/\.txt$/iu.test(rulesPath)) {
+      await loadRulesFile(rulesPath, null);
+    } else {
+      references.push({
+        path: rulesPath,
+        filter: null,
+      });
+    }
+
+    const mapFileName = posix.basename(
+      context.loaded.path,
+    );
+    const applicable = references.filter(
+      (reference) =>
+        reference.filter === null ||
+        reference.filter.test(mapFileName),
+    );
+    if (applicable.length === 0) {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        references.length === 0
+          ? `${rulesPath} lists no rule maps.`
+          : `No rule map in ${rulesPath} applies to ${mapFileName}; every entry is behind a non-matching [map name filter].`,
+        {
+          rulesPath,
+          referenceCount: references.length,
+        },
+      );
+    }
+    if (
+      applicable.length > MAX_AUTOMAP_RULE_MAPS
+    ) {
+      throw new TiledMcpError(
+        "RESULT_LIMIT_EXCEEDED",
+        `Automapping would run ${applicable.length} rule maps, over the ${MAX_AUTOMAP_RULE_MAPS} limit.`,
+        {
+          limit: MAX_AUTOMAP_RULE_MAPS,
+          actual: applicable.length,
+        },
+      );
+    }
+
+    const modelCache = new Map<
+      string,
+      AutomapRulesMapModel
+    >();
+    const models: AutomapRulesMapModel[] = [];
+    for (const reference of applicable) {
+      let model = modelCache.get(reference.path);
+      if (model === undefined) {
+        model = await this.loadAutomapRulesMap(
+          reference.path,
+          context,
+        );
+        modelCache.set(reference.path, model);
+      }
+      models.push(model);
+    }
+
+    // Every layer name any rules map reads or writes. Output layers must
+    // already exist — Tiled would create them, but a plan that invents
+    // layers cannot be expressed as setTiles, and creating them is its own
+    // operation with its own placement decisions.
+    const neededNames = new Set<string>();
+    const outputNames = new Set<string>();
+    for (const model of models) {
+      for (const name of model.inputLayerNames) {
+        neededNames.add(name);
+      }
+      for (const name of model.outputTileLayerNames) {
+        neededNames.add(name);
+        outputNames.add(name);
+      }
+    }
+    const targetTileLayers = new Map<
+      string,
+      { id: number; locked: boolean }
+    >();
+    const walkTargets = (
+      layers: JsonValue[],
+      layerContext: string,
+    ): void => {
+      for (const [
+        index,
+        rawLayer,
+      ] of layers.entries()) {
+        const layer = expectObject(
+          rawLayer,
+          `${layerContext}[${index}]`,
+        );
+        if (layer.type === "tilelayer") {
+          const name = layer.name;
+          if (
+            typeof name === "string" &&
+            !targetTileLayers.has(name)
+          ) {
+            targetTileLayers.set(name, {
+              id: expectInteger(
+                layer.id,
+                `${layerContext}[${index}].id`,
+              ),
+              locked: layer.locked === true,
+            });
+          }
+        }
+        if (Array.isArray(layer.layers)) {
+          walkTargets(
+            layer.layers,
+            `${layerContext}[${index}].layers`,
+          );
+        }
+      }
+    };
+    walkTargets(
+      expectArray(
+        context.loaded.document.layers,
+        `${context.loaded.path}.layers`,
+      ),
+      `${context.loaded.path}.layers`,
+    );
+    for (const name of outputNames) {
+      if (!targetTileLayers.has(name)) {
+        throw new TiledMcpError(
+          "LAYER_NOT_FOUND",
+          `${context.loaded.path} has no tile layer named ${JSON.stringify(name)} for the rules to write into. Create it with tiled_create_layer first; automapping never invents layers, so the result cannot depend on the order layers happen to be created in.`,
+          {
+            mapPath: context.loaded.path,
+            layerName: name,
+          },
+        );
+      }
+    }
+
+    const width = context.width;
+    const height = context.height;
+    const validatedGids = new Set<number>();
+    const layerStates = new Map<
+      string,
+      AutomapTargetLayer & { layerId: number }
+    >();
+    for (const name of neededNames) {
+      const located = targetTileLayers.get(name);
+      if (located === undefined) {
+        continue;
+      }
+      const view = findTileLayer(
+        context.loaded.document,
+        located.id,
+        context.loaded.path,
+        "read",
+      );
+      const original = new Uint32Array(
+        width * height,
+      );
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const gid = readLayerGid(view, x, y);
+          if (
+            gid !== 0 &&
+            !validatedGids.has(gid)
+          ) {
+            gidToTileRef(
+              gid,
+              context.orientation,
+              context.bindings,
+            );
+            validatedGids.add(gid);
+          }
+          original[y * width + x] = gid;
+        }
+      }
+      layerStates.set(name, {
+        name,
+        locked: located.locked,
+        original,
+        working: new Uint32Array(original),
+        layerId: located.id,
+      });
+    }
+
+    runAutomap({
+      width,
+      height,
+      layers: layerStates,
+      rulesMaps: models,
+      seed,
+      budget: {
+        maxRules: MAX_AUTOMAP_RULES,
+        maxMatchOperations:
+          MAX_AUTOMAP_MATCH_OPERATIONS,
+      },
+    });
+
+    const operations: MapEditOperation[] = [];
+    let changedCellCount = 0;
+    for (const state of layerStates.values()) {
+      const cells: Array<{
+        x: number;
+        y: number;
+        tile: TileRef | null;
+      }> = [];
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const index = y * width + x;
+          const after = state.working[
+            index
+          ] as number;
+          if (
+            after ===
+            (state.original[index] as number)
+          ) {
+            continue;
+          }
+          cells.push({
+            x,
+            y,
+            tile:
+              after === 0
+                ? null
+                : gidToTileRef(
+                    after,
+                    context.orientation,
+                    context.bindings,
+                  ),
+          });
+        }
+      }
+      if (cells.length === 0) {
+        continue;
+      }
+      changedCellCount += cells.length;
+      operations.push({
+        type: "setTiles",
+        layerId: state.layerId,
+        cells,
+      });
+    }
+    if (operations.length === 0) {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        "The automap produced no cell changes; the map already satisfies the rules.",
+        {
+          mapPath: context.loaded.path,
+          rulesPath,
+        },
+      );
+    }
+    if (changedCellCount > MAX_CELL_WRITES) {
+      throw new TiledMcpError(
+        "RESULT_LIMIT_EXCEEDED",
+        `Automapping writes ${changedCellCount} cells, over the ${MAX_CELL_WRITES} limit for one change set.`,
+        {
+          limit: MAX_CELL_WRITES,
+          actual: changedCellCount,
+        },
+      );
+    }
+
+    return this.planEdits(
+      input.mapPath,
+      input.expectedMapRevision,
+      input.expectedDependencyRevisions,
+      operations,
+    );
+  }
+
+  /**
+   * Reads one TMJ rules map and resolves its tileset slots into the model
+   * `automap.ts` consumes. MatchType-special tiles need no target binding;
+   * regular tiles from tilesets the target does not reference fail closed
+   * inside the parser, where the offending cell can be named.
+   */
+  private async loadAutomapRulesMap(
+    rulesMapPath: string,
+    context: EditableContext,
+  ): Promise<AutomapRulesMapModel> {
+    if (!/\.tmj$/iu.test(rulesMapPath)) {
+      throw new TiledMcpError(
+        "UNSUPPORTED_FORMAT",
+        `${rulesMapPath} is not a TMJ map; rules maps must be TMJ. Save a .tmx rules map as .tmj in Tiled first.`,
+        { path: rulesMapPath },
+      );
+    }
+    if (rulesMapPath === context.loaded.path) {
+      throw new TiledMcpError(
+        "INVALID_ARGUMENT",
+        "A map cannot be its own rules map.",
+        { path: rulesMapPath },
+      );
+    }
+    const source = this.store.parseSnapshot(
+      await this.store.readSnapshot(rulesMapPath),
+    );
+    const document = source.document;
+    if (document.type !== "map") {
+      throw new TiledMcpError(
+        "INVALID_DOCUMENT",
+        `${rulesMapPath} is not a Tiled map.`,
+        { path: rulesMapPath },
+      );
+    }
+    const orientation = expectString(
+      document.orientation,
+      `${rulesMapPath}.orientation`,
+    );
+    if (orientation !== context.orientation) {
+      throw new TiledMcpError(
+        "UNSUPPORTED_MAP_PROFILE",
+        `${rulesMapPath} is ${orientation} but ${context.loaded.path} is ${context.orientation}; a rules map must share the target's orientation.`,
+        {
+          rulesOrientation: orientation,
+          targetOrientation: context.orientation,
+        },
+      );
+    }
+    for (const member of [
+      "tilewidth",
+      "tileheight",
+    ] as const) {
+      const rulesValue = expectInteger(
+        document[member],
+        `${rulesMapPath}.${member}`,
+      );
+      const targetValue = expectInteger(
+        context.loaded.document[member],
+        `${context.loaded.path}.${member}`,
+      );
+      if (rulesValue !== targetValue) {
+        throw new TiledMcpError(
+          "UNSUPPORTED_MAP_PROFILE",
+          `${rulesMapPath} has ${member} ${rulesValue} but ${context.loaded.path} has ${targetValue}; the grids do not line up.`,
+          {
+            member,
+            rulesValue,
+            targetValue,
+          },
+        );
+      }
+    }
+    if (document.infinite === true) {
+      throw new TiledMcpError(
+        "UNSUPPORTED_MAP_PROFILE",
+        `${rulesMapPath} is infinite; rules maps must be finite.`,
+        { path: rulesMapPath },
+      );
+    }
+
+    const slots: AutomapTilesetSlot[] = [];
+    for (const [index, rawEntry] of expectArray(
+      document.tilesets,
+      `${rulesMapPath}.tilesets`,
+    ).entries()) {
+      const entry = expectObject(
+        rawEntry,
+        `${rulesMapPath}.tilesets[${index}]`,
+      );
+      const firstGid = expectInteger(
+        entry.firstgid,
+        `${rulesMapPath}.tilesets[${index}].firstgid`,
+      );
+      if (typeof entry.source === "string") {
+        const resolved =
+          await this.resolver.resolveReference(
+            rulesMapPath,
+            entry.source,
+          );
+        if (!/\.tsj$/iu.test(resolved)) {
+          throw new TiledMcpError(
+            "UNSUPPORTED_FORMAT",
+            `${rulesMapPath}.tilesets[${index}] references ${resolved}; rules maps may reference only TSJ tilesets.`,
+            {
+              path: rulesMapPath,
+              tilesetPath: resolved,
+            },
+          );
+        }
+        const binding = context.bindings.find(
+          (candidate) =>
+            candidate.path === resolved,
+        );
+        const tileset =
+          await this.store.read(resolved);
+        if (
+          binding !== undefined &&
+          tileset.revision !== binding.revision
+        ) {
+          throw new TiledMcpError(
+            "DEPENDENCY_REVISION_CONFLICT",
+            `${resolved} changed while the automap was being prepared.`,
+            {
+              assetId: binding.assetId,
+              expectedRevision: binding.revision,
+              actualRevision: tileset.revision,
+            },
+          );
+        }
+        slots.push({
+          firstGid,
+          targetFirstGid:
+            binding === undefined
+              ? null
+              : binding.firstGid,
+          tileCount:
+            binding === undefined
+              ? expectInteger(
+                  tileset.document.tilecount,
+                  `${resolved}.tilecount`,
+                )
+              : binding.tileCount,
+          matchTypes: readTileMatchTypes(
+            tileset.document.tiles,
+            resolved,
+          ),
+          label: resolved,
+          embedded: false,
+        });
+        continue;
+      }
+      const name =
+        typeof entry.name === "string"
+          ? entry.name
+          : `tilesets[${index}]`;
+      slots.push({
+        firstGid,
+        targetFirstGid: null,
+        tileCount: expectInteger(
+          entry.tilecount,
+          `${rulesMapPath}.tilesets[${index}].tilecount`,
+        ),
+        matchTypes: readTileMatchTypes(
+          entry.tiles,
+          `${rulesMapPath}.tilesets[${index}]`,
+        ),
+        label: name,
+        embedded: true,
+      });
+    }
+
+    return parseAutomapRulesMap({
+      document,
+      rulesMapPath,
+      slots,
+      orientation: context.orientation,
+      tileWidth: expectInteger(
+        document.tilewidth,
+        `${rulesMapPath}.tilewidth`,
+      ),
+      tileHeight: expectInteger(
+        document.tileheight,
+        `${rulesMapPath}.tileheight`,
+      ),
+    });
   }
 
   async planCreateLayer(

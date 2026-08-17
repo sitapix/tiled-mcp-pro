@@ -280,12 +280,16 @@ Regenerate a fixture with `pnpm tsx scripts/generate-floorplan-fixture.ts` or
 - **Consistency.** Every multi-file read reports
   `snapshotConsistency: "non-atomic-read-set"`. Read that as a disclosure, not an
   atomicity claim. `locked: true` is advisory metadata and blocks nothing.
-- **Out of scope.** Official AutoMapping — headless `--evaluate` in 1.12.2 cannot reach
-  it: `tiled.open()` needs the editor and `MapFormat.read()` maps are detached, which
-  `autoMap()` rejects (evidence and source citations in `docs/02-mcp-spec.md` §10;
-  `tests/automapCanary.test.ts` re-probes the installed Tiled and fails the day upstream
-  lifts the restriction). Also out: any force path that modifies or deletes project
-  assets, and a persistent prefab library with name matching.
+- **AutoMapping.** `tiled_preview_automap` runs Tiled 1.9+ rules (rules.txt or a single
+  rules map) through a native, deterministic port of the 1.12.2 rule engine — seeded
+  randomness, tile-layer outputs only, fail-closed on the rest. Native because headless
+  `--evaluate` cannot reach official AutoMapping in 1.12.2: `tiled.open()` needs the
+  editor and `MapFormat.read()` maps are detached, which `autoMap()` rejects (evidence
+  and source citations in `docs/02-mcp-spec.md` §10; `tests/automapCanary.test.ts`
+  re-probes the installed Tiled and fails the day upstream lifts the restriction, at
+  which point a CLI cross-check becomes possible).
+- **Out of scope.** Any force path that modifies or deletes project assets, and a
+  persistent prefab library with name matching.
 
 Exact schemas and limits come from
 [docs/generated/mcp-reference.md](docs/generated/mcp-reference.md) and

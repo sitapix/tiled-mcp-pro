@@ -304,6 +304,7 @@ Authoritative list, availability, and schemas: `contracts/mcp-contract.v1.json` 
 | `tiled_preview_prefab` | stamp a source region, multi-layer, with objects |
 | `tiled_preview_template` | place a JSON `.tj` template instance |
 | `tiled_preview_terrain` | Wang corner painting through the native matcher; no Tiled install required |
+| `tiled_preview_automap` | Tiled 1.9+ AutoMapping rules through the native rule engine; seeded determinism, no Tiled install required |
 
 **Native XML writing**
 
@@ -371,17 +372,35 @@ validate-then-fix, and map description.
 - **No live GUI bridge.** A WebSocket link to a resident Tiled is high-complexity for a narrow
   gain that `tiled_render_preview` mostly covers.
 - **No game runtime.** This manages map assets, not how an engine consumes them.
-- **No reimplementation of AutoMapping.** Rule semantics are intricate and version-dependent.
-  Delegating to Tiled itself was probed and is impossible in 1.12.2: `--evaluate` offers
-  exactly two ways to obtain a `TileMap`, and each fails a different precondition of
-  `EditableMap::autoMap` (`src/tiled/editablemap.cpp` in the Tiled sources, which demands a
-  `MapDocument`). `tiled.open()` would create that document but throws
-  `Error: Editor not available` without the GUI; `MapFormat.read()` works headlessly — it is
-  how terrain painting drives `wangEdit()` — but returns a detached map, and `autoMap()` on it
-  throws `Error: AutoMapping is currently not supported for detached maps`.
+- **No delegation of AutoMapping to the Tiled CLI.** AutoMapping itself is *in* scope —
+  `tiled_preview_automap` runs it through a native, deterministic port of the 1.12.2 rule
+  engine (`src/maps/automap.ts`, written against `src/tiled/automapper.cpp` in the Tiled
+  sources) — but unlike terrain painting it has no CLI parity path, because delegating was
+  probed and is impossible in 1.12.2: `--evaluate` offers exactly two ways to obtain a
+  `TileMap`, and each fails a different precondition of `EditableMap::autoMap`
+  (`src/tiled/editablemap.cpp`, which demands a `MapDocument`). `tiled.open()` would create
+  that document but throws `Error: Editor not available` without the GUI;
+  `MapFormat.read()` works headlessly — it is how terrain painting drives `wangEdit()` — but
+  returns a detached map, and `autoMap()` on it throws
+  `Error: AutoMapping is currently not supported for detached maps`.
   `tests/automapCanary.test.ts` re-runs both probes against the installed Tiled and fails
-  loudly the day upstream lifts the restriction, so this decision cannot silently outlive its
-  reason.
+  loudly the day upstream lifts the restriction — at which point a cross-check of the native
+  engine against real Tiled becomes possible and should be added, the way
+  `verify:tiled-1.12.2` cross-checks terrain painting.
+
+  The port covers the tile-layer core of the Tiled 1.9+ rule format and fails closed on the
+  rest rather than approximating: pre-1.9 `regions_*` rules maps, object-layer outputs,
+  output layers carrying custom properties (Tiled copies them onto the target), output
+  layers absent from the target (Tiled creates them), TMX/TSX rules sources, and infinite
+  targets are all rejected with actionable errors, and unknown rules-map properties error
+  where Tiled merely logs a warning — the server has no warning channel, and a silently
+  ignored typo'd option is the exact failure those warnings exist to catch. Randomness
+  (rule `Probability`, output-index choice) is drawn from a caller-supplied seed hashed with
+  the match coordinates instead of Tiled's `std::random_device`, so identical inputs always
+  produce identical plans; the probability semantics are unchanged. `MatchType` is resolved
+  from a tile's own property, matching Tiled's behavior when no project file is loaded;
+  class-inherited `MatchType` members are not resolved. `automapCapabilities` in
+  `tiled_get_capabilities` declares all of this.
 - **No DSL for adjacency constraints.** AutoMapping and Wang terrain cover nearly all of it, and
   a bespoke constraint engine has no floor.
 - **No implicit session state.** Every call carries its paths, ids, revisions, or a TTL-bound

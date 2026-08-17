@@ -47,6 +47,19 @@ export const MAX_CELL_WRITES = 100_000;
 /** Tiles a merge may shift its source by on either axis. */
 export const MAX_MERGE_OFFSET = 1_000_000;
 export const MAX_REGION_CELLS = 20_000;
+/** rules.txt files one automap run may read, includes counted. */
+export const MAX_AUTOMAP_RULES_FILES = 16;
+/** Rule-map references one automap run may execute, after filters. */
+export const MAX_AUTOMAP_RULE_MAPS = 64;
+/** Rules across all rule maps applied by one automap run. */
+export const MAX_AUTOMAP_RULES = 1_024;
+/**
+ * Cell comparisons one automap run may spend matching. This is the inner
+ * loop of `runAutomap` — candidate positions times compiled rule cells —
+ * counted exactly, so pathological rule sets fail fast instead of hanging
+ * the server.
+ */
+export const MAX_AUTOMAP_MATCH_OPERATIONS = 50_000_000;
 export const MAX_LAYER_COUNT = 10_000;
 export const MAX_LAYER_DEPTH = 64;
 export const MAX_TILESET_COUNT = 4_096;

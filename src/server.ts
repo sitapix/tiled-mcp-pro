@@ -93,6 +93,10 @@ import {
 import {
   DEFAULT_USAGE_TOP_TILE_LIMIT,
   MAX_ADD_TILESET_GID_SCANS,
+  MAX_AUTOMAP_MATCH_OPERATIONS,
+  MAX_AUTOMAP_RULES,
+  MAX_AUTOMAP_RULES_FILES,
+  MAX_AUTOMAP_RULE_MAPS,
   MAX_CELL_WRITES,
   MAX_MERGE_OFFSET,
   MAX_CREATE_MAP_DIMENSION,
@@ -1861,6 +1865,7 @@ export const TILED_MCP_CORE_TOOL_NAMES =
     "tiled_preview_world_edits",
     "tiled_preview_transaction",
     "tiled_preview_terrain",
+    "tiled_preview_automap",
     "tiled_apply_change_set",
   ] as const);
 export const TILED_MCP_OPTIONAL_TOOL_NAMES =
@@ -3102,6 +3107,27 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
             "project-local-revision-pinned-safe-image",
           writeTarget: "map-only",
         },
+        automapCapabilities: {
+          engine:
+            "native-port-of-tiled-1.12.2-automapper",
+          cliParity:
+            "impossible-headless-see-automap-canary",
+          ruleFormat: "tiled-1.9-plus-tmj-only",
+          determinism:
+            "seed-and-coordinate-hash-not-tiled-rng",
+          matchTypeResolution:
+            "direct-tile-property-no-class-inheritance",
+          unsupported: [
+            "legacy-regions-layers",
+            "object-layer-outputs",
+            "output-layer-property-copying",
+            "output-layer-autocreation",
+            "tmx-tsx-rules-sources",
+            "infinite-targets",
+          ],
+          unknownRulesMapProperties:
+            "rejected-not-warned",
+        },
         nativePreviewCapabilities: {
           renderProfile:
             "finite-orthogonal-static-atlas-tilelayers-v1",
@@ -3244,6 +3270,13 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
             MAX_CREATE_MAP_TILE_EDGE,
           maxRegionCells: 20_000,
           maxChangeSetCellWrites: MAX_CELL_WRITES,
+          maxAutomapRulesFiles:
+            MAX_AUTOMAP_RULES_FILES,
+          maxAutomapRuleMaps:
+            MAX_AUTOMAP_RULE_MAPS,
+          maxAutomapRules: MAX_AUTOMAP_RULES,
+          maxAutomapMatchOperations:
+            MAX_AUTOMAP_MATCH_OPERATIONS,
           maxPendingChangeSetCellWrites: DEFAULT_MAX_PENDING_CELL_WRITES,
           maxPendingObjectShapePoints:
             DEFAULT_MAX_PENDING_OBJECT_SHAPE_POINTS,
@@ -7359,6 +7392,69 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
               expectedDependencyRevisions,
             },
           );
+          return changeSets.put(plan);
+        }),
+    );
+
+  // AutoMapping is core, not CLI-gated: the rule engine is a native port of
+  // Tiled 1.12.2's automapper. Unlike terrain there is no CLI parity path —
+  // headless Tiled cannot automap at all (tests/automapCanary.test.ts keeps
+  // that fact executable), which is why the engine exists.
+  toolRegistrars["tiled_preview_automap"] = () =>
+    register(
+      server,
+      registeredTools,
+      "tiled_preview_automap",
+      {
+        title:
+          "Preview applying AutoMapping rules",
+        description:
+          "Runs Tiled-style AutoMapping over the whole map with a native, deterministic port of Tiled 1.12.2's rule engine — a core tool needing no Tiled install — and returns an ordinary mapEdit change set carrying one setTiles operation per changed output layer, so untouched fragments keep their exact bytes and every preview, revision-pin, and transaction rule applies unchanged. rulesPath names a rules.txt (with includes, comments, and [map name filter] lines) or a single rules map, defaulting to rules.txt beside the map; rules maps must be finite TMJ in the Tiled 1.9+ format, sharing the target's orientation and tile size, and every input_/inputnot_/output_ layer convention, MatchType special tile (Empty, Ignore, NonEmpty, Other, Negate), map option (DeleteTiles, MatchOutsideMap, OverflowBorder, WrapBorder, MatchInOrder, ModX/ModY/OffsetX/OffsetY, Probability, Disabled, IgnoreLock, NoOverlappingOutput), AutoEmpty/StrictEmpty and Ignore*Flip layer properties, output-index randomness, and rule_options rectangles is honored. Where Tiled draws randomness from the system, this hashes the seed input with the match coordinates, so the same seed always yields the same plan. Fails closed on pre-1.9 regions_* rules maps, object-layer outputs, output layers carrying custom properties, output layers missing from the target (create them with tiled_create_layer), tilesets the target does not reference (attach with tiled_add_tileset_to_map), and unknown rules-map properties that Tiled would merely warn about. A run that changes nothing fails closed.",
+        inputSchema: z
+          .object({
+            mapPath: projectPathSchema,
+            rulesPath: projectPathSchema
+              .optional()
+              .describe(
+                "A rules.txt or a single TMJ rules map. Defaults to rules.txt next to the map.",
+              ),
+            seed: z
+              .number()
+              .int()
+              .min(Number.MIN_SAFE_INTEGER)
+              .max(Number.MAX_SAFE_INTEGER)
+              .optional()
+              .describe(
+                "Determinism seed for rule Probability and output-index choices. Defaults to 0.",
+              ),
+            expectedMapRevision: revisionSchema,
+            expectedDependencyRevisions:
+              dependencyRevisionsSchema,
+          })
+          .strict(),
+        outputSchema:
+          previewSetTilesSequenceToolOutputSchema,
+        annotations: PREVIEW_ONLY,
+      },
+      async ({
+        mapPath,
+        rulesPath,
+        seed,
+        expectedMapRevision,
+        expectedDependencyRevisions,
+      }) =>
+        executeTool(async () => {
+          const plan = await maps.planAutomap({
+            mapPath,
+            ...(rulesPath === undefined
+              ? {}
+              : { rulesPath }),
+            ...(seed === undefined
+              ? {}
+              : { seed }),
+            expectedMapRevision,
+            expectedDependencyRevisions,
+          });
           return changeSets.put(plan);
         }),
     );

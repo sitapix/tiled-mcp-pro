@@ -22,6 +22,7 @@ import {
 const MAP_PATH = "maps/level.tmj";
 const SOURCE_MAP_PATH = "maps/room.tmj";
 const BROKEN_MAP_PATH = "maps/broken.tmj";
+const RULES_PATH = "maps/rules.tmj";
 const TEMPLATE_PATH = "templates/crate.tj";
 const TILESET_PATH = "tiles/decor.tsj";
 const REFERENCE_PATH = "reference/sketch.png";
@@ -213,6 +214,22 @@ describe("narrowed map-edit preview outputs over the MCP tool surface", () => {
     expectSetTilesSequence(plan);
   });
 
+  it("tiled_preview_automap emits only setTiles", async () => {
+    const plan = await preview(
+      client,
+      "tiled_preview_automap",
+      {
+        mapPath: MAP_PATH,
+        rulesPath: RULES_PATH,
+        seed: 1,
+        expectedMapRevision: mapRevision,
+        expectedDependencyRevisions:
+          dependencyRevisions,
+      },
+    );
+    expectSetTilesSequence(plan);
+  });
+
   it("tiled_preview_template emits exactly one instantiateTemplate", async () => {
     const plan = await preview(
       client,
@@ -359,6 +376,10 @@ describe("narrowed map-edit preview outputs over the MCP tool surface", () => {
           "tiled_preview_validation_fixes",
           {},
         ],
+        [
+          "tiled_preview_automap",
+          { rulesPath: RULES_PATH },
+        ],
       ] as const) {
         const response = (await infinite.client.callTool(
           {
@@ -500,6 +521,7 @@ async function harness(
       [MAP_PATH]: mapOverride ?? targetMap(),
       [SOURCE_MAP_PATH]: sourceMap(),
       [BROKEN_MAP_PATH]: brokenMap(),
+      [RULES_PATH]: rulesMap(),
       [TEMPLATE_PATH]: {
         type: "template",
         object: {
@@ -683,6 +705,56 @@ function sourceMap(): JsonObject {
     ],
     { nextobjectid: 2 },
   );
+}
+
+/**
+ * A 1x1 rules map: an Empty MatchType tile on `input_ground` matches every
+ * empty target cell, and `output_ground` writes decor local 0 there — so
+ * running it against the empty target changes cells without needing content.
+ */
+function rulesMap(): JsonObject {
+  return {
+    ...baseMap(
+      [
+        tileLayer([3], {
+          id: 1,
+          name: "input_ground",
+          width: 1,
+          height: 1,
+        }),
+        tileLayer([1], {
+          id: 2,
+          name: "output_ground",
+          width: 1,
+          height: 1,
+        }),
+      ],
+      { width: 1, height: 1 },
+    ),
+    tilesets: [
+      { firstgid: 1, source: "../tiles/decor.tsj" },
+      {
+        firstgid: 3,
+        name: "AutoMap Rules",
+        tilewidth: 16,
+        tileheight: 16,
+        tilecount: 1,
+        columns: 1,
+        tiles: [
+          {
+            id: 0,
+            properties: [
+              {
+                name: "MatchType",
+                type: "string",
+                value: "Empty",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
 }
 
 /** A GID past the bound tileset's range, which is what validation fixes erase. */

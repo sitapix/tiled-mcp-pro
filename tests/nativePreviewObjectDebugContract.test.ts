@@ -528,7 +528,10 @@ describe("native preview object debug server contract", () => {
     // which picks its writer from the source extension.
     // 50: the three prepared-checkpoint previews folded into
     // `tiled_preview_prepared_checkpoint`, selected by `resolution`.
-    expect(registeredTools).toHaveLength(50);
+    // 51 since `tiled_preview_automap`: the native AutoMapping rule engine
+    // became core -- headless Tiled cannot automap, so there is no CLI to
+    // gate it behind.
+    expect(registeredTools).toHaveLength(51);
 
     const response = (await client.callTool({
       name: "tiled_get_capabilities",
