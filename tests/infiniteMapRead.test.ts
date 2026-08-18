@@ -110,6 +110,37 @@ describe("infinite chunked map read-only support", () => {
     });
   });
 
+  it("reads chunked regions as compact raw GID rows", async () => {
+    const harness = await createHarness(
+      roots,
+      defaultChunks(),
+    );
+    const region =
+      await harness.service.getRegion({
+        mapPath: MAP_PATH,
+        layerId: LAYER_ID,
+        x: -2,
+        y: -1,
+        width: 4,
+        height: 2,
+        format: "gids",
+      });
+    expect(region.cellSemantics).toBe(
+      "raw-encoded-gids",
+    );
+    // Same window as the resolved-cell read above: raw GIDs, empty cells 0.
+    expect(region.rows).toEqual([
+      [1, 2, 0, 0],
+      [0, 0, 3, 0],
+    ]);
+    expect(region.tilesets).toEqual([
+      expect.objectContaining({
+        firstGid: 1,
+        source: TILESET_PATH,
+      }),
+    ]);
+  });
+
   it("reads zlib-compressed chunk data with layer-level encoding members", async () => {
     const chunkCells = (
       cells: number[],

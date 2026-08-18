@@ -640,6 +640,63 @@ const regionResultOutputSchema = z
   })
   .strict();
 
+/**
+ * The compact `format: "gids"` projection of a TMJ region read: raw encoded
+ * GID rows (flip bits included) plus the map's firstgid legend, so callers
+ * attribute cells themselves. Roughly 35x smaller than the resolved-cell
+ * shape for identical data; every GID is still decoded and validated.
+ */
+const regionGidsResultOutputSchema = z
+  .object({
+    mapPath: projectPathOutputSchema,
+    revision: revisionOutputSchema,
+    dependencyRevisions:
+      dependencyRevisionsOutputSchema,
+    layer: regionLayerOutputSchema,
+    region: regionRectOutputSchema,
+    cellSemantics: z.literal(
+      "raw-encoded-gids",
+    ),
+    rows: z
+      .array(
+        z
+          .array(
+            nonnegativeIntegerOutputSchema.max(
+              0xffffffff,
+            ),
+          )
+          .max(MAX_PREVIEW_REGION_CELLS),
+      )
+      .max(MAX_PREVIEW_REGION_CELLS),
+    tilesets: z
+      .array(
+        z.union([
+          z
+            .object({
+              firstGid:
+                positiveIntegerOutputSchema,
+              source: z.string().min(1),
+              assetId: assetIdOutputSchema,
+            })
+            .strict(),
+          z
+            .object({
+              firstGid:
+                positiveIntegerOutputSchema,
+              embedded: z.literal(true),
+              sourceIndex:
+                nonnegativeIntegerOutputSchema,
+              name: z.string(),
+              tileCount:
+                nonnegativeIntegerOutputSchema,
+            })
+            .strict(),
+        ]),
+      )
+      .max(4_096),
+  })
+  .strict();
+
 const tmxRegionResultOutputSchema = z
   .object({
     mapPath: projectPathOutputSchema,
@@ -702,6 +759,7 @@ export const regionToolOutputSchema =
   toolOutputSchema(
     z.union([
       regionResultOutputSchema,
+      regionGidsResultOutputSchema,
       tmxRegionResultOutputSchema,
     ]),
   );

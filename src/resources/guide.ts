@@ -306,7 +306,9 @@ For an existing map:
    by embedded tilesets keep failing closed. Its tile metadata
    page is sparse and ordered by local ID. TMX maps answer region reads
    with raw encoded GIDs plus the map's tileset ranges (finite csv and
-   base64 layers only). Tile classes use the current Tiled \`tiles[].type\`
+   base64 layers only) and ignore \`format\`; TMJ maps return the same
+   compact shape when asked with \`format:"gids"\`. Tile classes use the
+   current Tiled \`tiles[].type\`
    field, with \`class\` accepted only as a Tiled 1.9 compatibility fallback.
    Each atlas Wang set expands its full color list (1-based indexes,
    probability, image tile, properties) plus a bounded \`wangtiles\` sample
@@ -329,7 +331,21 @@ For an existing map:
    unchanged. The result labels static raw atlas cells in that same order;
    it never sorts, deduplicates, lowers scale, or drops selected IDs.
 5. Use \`tiled_get_region\` for a bounded tile rectangle and
-   \`tiled_list_objects\` for bounded object discovery. Before replacing points
+   \`tiled_list_objects\` for bounded object discovery. Mind the response
+   size: the default \`format:"cells"\` spells out a resolved tile
+   reference per cell, which is right for a handful of cells and very
+   wrong for a whole layer. For anything beyond a few dozen cells pass
+   \`format:"gids"\` — the same region as raw encoded GID rows plus a
+   firstgid legend (external entries carry \`assetId\` and \`source\`,
+   embedded entries carry \`sourceIndex\`), roughly 35x smaller, with
+   every GID still decoded and validated. Decode a cell as
+   \`localId = (gid & 0x0fffffff) - firstGid\` of the legend entry with
+   the greatest \`firstGid\` at or below it; the top bits are Tiled's
+   flip flags. A region may span at most 20,000 cells
+   (\`limits.maxRegionCells\`); when you only need "which cells match"
+   use \`tiled_select\`, for aggregate composition use
+   \`tiled_analyze_usage\`, and for a visual read use
+   \`tiled_render_preview\`. Before replacing points
    or deleting a polygon/polyline, or replacing text content/style, call
    \`tiled_get_object\` with the listed object ID to obtain its complete
    bounded semantic projection and current map/dependency revisions.
@@ -1053,7 +1069,10 @@ silently ignore something — an unknown property, an unrecognized layer
 name — this errors instead: a silently dropped \`outpt_Ground\` typo is
 exactly the failure the warnings exist to catch, and no warning channel
 reaches you. Prefix a rules-map layer's name with \`//\` to comment it
-out deliberately.
+out deliberately. A run whose rules produce no cell changes fails with
+the dedicated \`PLAN_NO_CHANGES\` code (terrain painting uses the same
+code for a no-op paint), so branch on that code — not the message — to
+treat "already satisfies the rules" as success in idempotency checks.
 
 ## Edit Wang terrain sets
 

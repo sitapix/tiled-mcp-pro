@@ -161,8 +161,11 @@ export class TiledCliAdapter {
       ...options.env,
       // Tiled localizes --export-formats headings. Pin the subprocess locale
       // so capability parsing is deterministic across desktop environments.
-      LANG: "C",
-      LC_ALL: "C",
+      // C.UTF-8 rather than plain C: Qt (Tiled 1.12.2's builds) prints a
+      // "Detected locale \"C\" ... is not UTF-8" warning to stderr under a
+      // non-UTF-8 locale, polluting every probe's output.
+      LANG: "C.UTF-8",
+      LC_ALL: "C.UTF-8",
     };
     // Default to Qt's offscreen platform so exports work without a display —
     // except on macOS, where the official Tiled.app bundles only the cocoa
@@ -553,6 +556,13 @@ function parseExportFormats(result: CommandResult): TiledExportFormats {
       continue;
     }
     if (!section || line.length === 0) {
+      continue;
+    }
+    // Tiled prints each format indented beneath its heading. An unindented
+    // line inside a section is ambient noise, not a format: Qt warnings
+    // arrive on stderr, which this parser appends after stdout — landing
+    // mid-"section" and, before this guard, into the format list.
+    if (!/^[ \t]/u.test(rawLine)) {
       continue;
     }
 

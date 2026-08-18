@@ -111,6 +111,39 @@ describe("embedded tileset reading", () => {
     expect(rows[1]?.[1]).toBeNull();
   });
 
+  it("lists embedded tilesets in the compact region legend", async () => {
+    const harness = await createHarness(roots);
+    const region = await harness.service.getRegion({
+      mapPath: MAP_PATH,
+      layerId: LAYER_ID,
+      x: 0,
+      y: 0,
+      width: 2,
+      height: 2,
+      format: "gids",
+    });
+    expect(region.cellSemantics).toBe(
+      "raw-encoded-gids",
+    );
+    expect(region.rows).toEqual([
+      [1, 5],
+      [8, 0],
+    ]);
+    expect(region.tilesets).toEqual([
+      expect.objectContaining({
+        firstGid: 1,
+        source: EXTERNAL_TILESET_PATH,
+      }),
+      {
+        firstGid: 5,
+        embedded: true,
+        sourceIndex: 1,
+        name: "Inline",
+        tileCount: 4,
+      },
+    ]);
+  });
+
   it("projects embedded tileset details addressed by tilesets[] index", async () => {
     const harness = await createHarness(roots);
     const summary = await harness.service.getSummary(

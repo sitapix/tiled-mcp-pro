@@ -337,6 +337,54 @@ describe("TiledCliAdapter.renderPng", () => {
     });
   });
 
+  it("keeps stderr noise out of the export-format lists", async () => {
+    // Qt prints a locale warning to stderr under a non-UTF-8 locale; the
+    // parser merges stdout+stderr, so before the indentation guard those
+    // words landed in tilesetExportFormats as ["Detected", "Qt", ...].
+    const fakeTiledPath = join(
+      root,
+      "fake-tiled.mjs",
+    );
+    await writeFile(
+      fakeTiledPath,
+      [
+        "#!/usr/bin/env node",
+        'if (process.argv[2] === "--export-formats") {',
+        "  process.stderr.write([",
+        "    'Detected locale \"C\" with character encoding \"US-ASCII\", which is not UTF-8.',",
+        "    'Qt depends on a UTF-8 locale, and has switched to \"UTF-8\" instead.',",
+        '    "If this causes problems, reconfigure your locale. See the locale(1) manual",',
+        '    "for more information.",',
+        '  ].join("\\n") + "\\n");',
+        "  process.stdout.write([",
+        '    "Map export formats:",',
+        '    " csv",',
+        '    " json",',
+        '    "Tileset export formats:",',
+        '    " json",',
+        '    " lua",',
+        '    " tsx",',
+        '  ].join("\\n") + "\\n");',
+        "  process.exit(0);",
+        "}",
+        "process.exit(2);",
+      ].join("\n"),
+      { encoding: "utf8", mode: 0o700 },
+    );
+    await chmod(fakeTiledPath, 0o700);
+
+    const adapter = new TiledCliAdapter({
+      tiledCliPath: fakeTiledPath,
+      rasterizerPath: fakeTiledPath,
+    });
+    await expect(
+      adapter.getExportFormats(),
+    ).resolves.toEqual({
+      map: ["csv", "json"],
+      tileset: ["json", "lua", "tsx"],
+    });
+  });
+
   it("redacts internal capability-probe messages while preserving public issues", async () => {
     const adapter = createAdapter({});
     adapter.getTiledVersion = async () => {

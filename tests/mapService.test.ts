@@ -2388,6 +2388,58 @@ describe("MapService", () => {
     });
   });
 
+  it("reads a region as compact raw GID rows with a firstgid legend", async () => {
+    const assetId = await getAssetId(harness.service);
+    const region = await harness.service.getRegion({
+      mapPath: MAP_PATH,
+      layerId: LAYER_ID,
+      x: 0,
+      y: 0,
+      width: 4,
+      height: 3,
+      format: "gids",
+    });
+
+    expect(region).toEqual({
+      mapPath: MAP_PATH,
+      revision: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+      dependencyRevisions: {
+        [assetId]: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+      },
+      layer: { id: LAYER_ID, name: "Ground" },
+      region: { x: 0, y: 0, width: 4, height: 3 },
+      cellSemantics: "raw-encoded-gids",
+      rows: [
+        [0, 1, FLAGGED_LOCAL_ID_TWO, 0],
+        [4, 0, 0, 0],
+        [0, 0, 0, 4],
+      ],
+      tilesets: [
+        { firstGid: 1, source: TILESET_PATH, assetId },
+      ],
+    });
+  });
+
+  it("keeps validating every GID in compact region reads", async () => {
+    const danglingMap = baseMap();
+    ((danglingMap.layers as JsonObject[])[0]?.data as JsonValue[])[1] = 99;
+    await writeJson(join(harness.root, MAP_PATH), danglingMap);
+    await expect(
+      harness.service.getRegion({
+        mapPath: MAP_PATH,
+        layerId: LAYER_ID,
+        x: 0,
+        y: 0,
+        width: 4,
+        height: 3,
+        format: "gids",
+      }),
+    ).rejects.toMatchObject({
+      name: "TiledMcpError",
+      code: "GID_OUT_OF_RANGE",
+    });
+  });
+
   it("plans without writing and applies both closed edit operations while preserving unknown fields", async () => {
     const absoluteMapPath = join(harness.root, MAP_PATH);
     const before = await readFile(absoluteMapPath);
