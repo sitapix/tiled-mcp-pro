@@ -28,10 +28,10 @@ const KNOWN_PROPERTY_TYPES = new Set([
   "list",
 ]);
 
-export type PropertyWriteType =
+type PropertyWriteType =
   (typeof PROPERTY_WRITE_TYPES)[number];
 
-export interface PropertyWrite {
+interface PropertyWrite {
   name: string;
   type: PropertyWriteType;
   value: string | number | boolean;
@@ -47,7 +47,7 @@ export const MAX_LIST_ELEMENT_WRITES_PER_TARGET = 16;
  * impossible without the project's class definitions (they carry the
  * Tiled type annotations), so absent members fail closed.
  */
-export interface ClassMemberWrite {
+interface ClassMemberWrite {
   property: string;
   path: string[];
   value: string | number | boolean;
@@ -60,7 +60,7 @@ export interface ClassMemberWrite {
  * appending or removing elements and touching enum-wrapped
  * (`propertytype`) or nested class/list elements fail closed.
  */
-export interface ListElementWrite {
+interface ListElementWrite {
   property: string;
   index: number;
   value: string | number | boolean;

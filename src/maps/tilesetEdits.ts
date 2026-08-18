@@ -31,7 +31,7 @@ export const MAX_TILE_COLLISION_COORDINATE = 1_000_000_000;
 export const MIN_TILE_COLLISION_POLYGON_POINTS = 3;
 export const MIN_TILE_COLLISION_POLYLINE_POINTS = 2;
 export const MAX_TILE_COLLISION_SHAPE_POINTS = 256;
-export const TILE_COLLISION_SHAPE_KINDS = [
+const TILE_COLLISION_SHAPE_KINDS = [
   "rectangle",
   "point",
   "ellipse",
@@ -48,11 +48,6 @@ export {
   MAX_PROPERTY_VALUE_CODE_POINTS as MAX_TILE_PROPERTY_VALUE_CODE_POINTS,
   PROPERTY_WRITE_TYPES as TILE_PROPERTY_WRITE_TYPES,
 } from "./propertyEdits.js";
-export type {
-  PropertyWriteType as TilePropertyWriteType,
-  PropertyWrite as TilePropertyWrite,
-  PropertiesPatch as TilePropertiesPatch,
-} from "./propertyEdits.js";
 
 const TILESET_EDIT_PLAN_HASH_DOMAIN =
   "tiledmcp/tileset-edit-plan/v2\0";
@@ -61,15 +56,15 @@ const UPDATE_TILE_WARNING =
 const COLLECTION_STRUCTURAL_WARNING =
   "This inserts or removes one image-collection tile entry and rewrites the tileset's tilecount and maximum tile size, changing the collection's GID span. Referencing maps are never rewritten; pending change sets pinned to the old tileset revision will conflict after apply.";
 
-export interface TileAnimationFrameInput {
+interface TileAnimationFrameInput {
   tileId: number;
   durationMs: number;
 }
 
-export type TileCollisionShapeKind =
+type TileCollisionShapeKind =
   (typeof TILE_COLLISION_SHAPE_KINDS)[number];
 
-export interface TileCollisionShapeInput {
+interface TileCollisionShapeInput {
   shape: TileCollisionShapeKind;
   x: number;
   y: number;
@@ -83,11 +78,11 @@ export interface TileCollisionShapeInput {
     | undefined;
 }
 
-export interface TileCollisionPatch {
+interface TileCollisionPatch {
   shapes: TileCollisionShapeInput[];
 }
 
-export interface TileMetadataPatch {
+interface TileMetadataPatch {
   /**
    * `null` or the Tiled default `1` removes the serialized member.
    */
@@ -118,7 +113,7 @@ export interface TileMetadataPatch {
   properties?: PropertiesPatch | undefined;
 }
 
-export interface CollectionTileCreateInput {
+interface CollectionTileCreateInput {
   /** Image reference exactly as serialized in the TSJ (tileset-relative). */
   image: string;
   /**
@@ -144,7 +139,7 @@ export interface TileMetadataUpdate {
   removeCollectionTile?: true;
 }
 
-export type TileEntryAction =
+type TileEntryAction =
   | "insert"
   | "update"
   | "remove"
@@ -165,13 +160,13 @@ export interface TileUpdateSummary {
   collisionShapeCount?: number;
 }
 
-export type TilesMemberAction =
+type TilesMemberAction =
   | "insert"
   | "keep"
   | "remove"
   | "none";
 
-export interface CollectionStructureSummary {
+interface CollectionStructureSummary {
   action: "create" | "remove";
   tileId: number;
   tileCountBefore: number;

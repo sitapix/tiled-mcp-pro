@@ -565,7 +565,7 @@ export function readChunkedRegionGids(
 }
 
 export const TILED_DEFAULT_CHUNK_SIZE = 16;
-export const TILED_MIN_CHUNK_SIZE = 4;
+const TILED_MIN_CHUNK_SIZE = 4;
 
 /**
  * Reads the map's serialization chunk size with Tiled 1.12.2 reader

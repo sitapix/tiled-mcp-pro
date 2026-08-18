@@ -641,10 +641,25 @@ const regionResultOutputSchema = z
   .strict();
 
 /**
- * The compact `format: "gids"` projection of a TMJ region read: raw encoded
- * GID rows (flip bits included) plus the map's firstgid legend, so callers
- * attribute cells themselves. Roughly 35x smaller than the resolved-cell
- * shape for identical data; every GID is still decoded and validated.
+ * One RLE row of raw encoded GIDs (flip bits included): comma-separated
+ * maximal runs left to right, `<gid>` for a single cell and `<gid>*<count>`
+ * (count >= 2) for repeats. A GID is at most 10 decimal digits (0xffffffff)
+ * and a run at most the region cell cap, which bounds the row length at 11
+ * characters per cell.
+ */
+const rleGidRowOutputSchema = z
+  .string()
+  .regex(
+    /^(?:0|[1-9]\d{0,9})(?:\*(?:[2-9]|[1-9]\d{1,4}))?(?:,(?:0|[1-9]\d{0,9})(?:\*(?:[2-9]|[1-9]\d{1,4}))?)*$/,
+  )
+  .max(11 * MAX_PREVIEW_REGION_CELLS);
+
+/**
+ * The compact `format: "gids"` projection of a TMJ region read: RLE rows of
+ * raw encoded GIDs plus the map's firstgid legend, so callers attribute
+ * cells themselves. One JSON string per row keeps sparse layers from
+ * flooding agent context windows however the client renders the payload;
+ * every GID is still decoded and validated.
  */
 const regionGidsResultOutputSchema = z
   .object({
@@ -655,18 +670,10 @@ const regionGidsResultOutputSchema = z
     layer: regionLayerOutputSchema,
     region: regionRectOutputSchema,
     cellSemantics: z.literal(
-      "raw-encoded-gids",
+      "rle-encoded-gids",
     ),
     rows: z
-      .array(
-        z
-          .array(
-            nonnegativeIntegerOutputSchema.max(
-              0xffffffff,
-            ),
-          )
-          .max(MAX_PREVIEW_REGION_CELLS),
-      )
+      .array(rleGidRowOutputSchema)
       .max(MAX_PREVIEW_REGION_CELLS),
     tilesets: z
       .array(
@@ -713,18 +720,10 @@ const tmxRegionResultOutputSchema = z
       .strict(),
     region: regionRectOutputSchema,
     cellSemantics: z.literal(
-      "raw-encoded-gids",
+      "rle-encoded-gids",
     ),
     rows: z
-      .array(
-        z
-          .array(
-            nonnegativeIntegerOutputSchema.max(
-              0xffffffff,
-            ),
-          )
-          .max(MAX_PREVIEW_REGION_CELLS),
-      )
+      .array(rleGidRowOutputSchema)
       .max(MAX_PREVIEW_REGION_CELLS),
     tilesets: z
       .array(
@@ -1187,19 +1186,9 @@ const renderObliqueResultOutputSchema = z
   })
   .strict();
 
-export const renderHexagonalToolOutputSchema =
-  toolOutputSchema(
-    renderHexagonalResultOutputSchema,
-  );
-
 export const listTileNamesToolOutputSchema =
   toolOutputSchema(
     listTileNamesResultOutputSchema,
-  );
-
-export const renderIsometricToolOutputSchema =
-  toolOutputSchema(
-    renderIsometricResultOutputSchema,
   );
 
 export const listPropertyTypesToolOutputSchema =

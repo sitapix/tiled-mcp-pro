@@ -1,6 +1,6 @@
-export const TILED_MCP_ERROR_CODE_CONTRACT_NAME =
+const TILED_MCP_ERROR_CODE_CONTRACT_NAME =
   "tiled-mcp-error-codes" as const;
-export const TILED_MCP_ERROR_CODE_CONTRACT_VERSION =
+const TILED_MCP_ERROR_CODE_CONTRACT_VERSION =
   1 as const;
 
 /**

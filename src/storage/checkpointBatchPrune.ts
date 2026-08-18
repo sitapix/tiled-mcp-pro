@@ -180,7 +180,7 @@ export function checkpointPruneBatchOperationPreview(
   };
 }
 
-export function checkpointPruneBatchBaseRevision(
+function checkpointPruneBatchBaseRevision(
   checkpoints: readonly CheckpointBatchPruneExpectation[],
 ): string {
   const pins = checkpoints.map(

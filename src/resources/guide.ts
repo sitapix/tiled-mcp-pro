@@ -7,7 +7,7 @@ import { revisionOf } from "../storage/revision.js";
 import { SERVER_VERSION } from "../version.js";
 
 export const GUIDE_RESOURCE_URI = "tiled://guide";
-export const GUIDE_SECTION_TEMPLATE_URI =
+const GUIDE_SECTION_TEMPLATE_URI =
   "tiled://guide/{section}";
 export const GUIDE_RESOURCE_MIME_TYPE = "text/markdown";
 export const MAX_GUIDE_RESOURCE_BYTES = 128 * 1024;
@@ -305,9 +305,9 @@ For an existing map:
    \`{embedded: {sourceIndex}}\`). Every edit path and tile objects backed
    by embedded tilesets keep failing closed. Its tile metadata
    page is sparse and ordered by local ID. TMX maps answer region reads
-   with raw encoded GIDs plus the map's tileset ranges (finite csv and
-   base64 layers only) and ignore \`format\`; TMJ maps return the same
-   compact shape when asked with \`format:"gids"\`. Tile classes use the
+   with RLE rows of raw encoded GIDs plus the map's tileset ranges (finite
+   csv and base64 layers only) and ignore \`format\`; TMJ maps return the
+   same compact shape when asked with \`format:"gids"\`. Tile classes use the
    current Tiled \`tiles[].type\`
    field, with \`class\` accepted only as a Tiled 1.9 compatibility fallback.
    Each atlas Wang set expands its full color list (1-based indexes,
@@ -335,13 +335,15 @@ For an existing map:
    size: the default \`format:"cells"\` spells out a resolved tile
    reference per cell, which is right for a handful of cells and very
    wrong for a whole layer. For anything beyond a few dozen cells pass
-   \`format:"gids"\` — the same region as raw encoded GID rows plus a
+   \`format:"gids"\` — the same region as one RLE string per row plus a
    firstgid legend (external entries carry \`assetId\` and \`source\`,
-   embedded entries carry \`sourceIndex\`), roughly 35x smaller, with
-   every GID still decoded and validated. Decode a cell as
-   \`localId = (gid & 0x0fffffff) - firstGid\` of the legend entry with
-   the greatest \`firstGid\` at or below it; the top bits are Tiled's
-   flip flags. A region may span at most 20,000 cells
+   embedded entries carry \`sourceIndex\`), with every GID still decoded
+   and validated. A row is comma-separated maximal runs of raw encoded
+   GIDs, left to right: \`364\` is one cell, \`0*48\` is the GID repeated
+   48 times, so \`"0*12,364,0*48"\` spells a 61-cell row. Expand the runs,
+   then decode a cell as \`localId = (gid & 0x0fffffff) - firstGid\` of
+   the legend entry with the greatest \`firstGid\` at or below it; the
+   top bits are Tiled's flip flags. A region may span at most 20,000 cells
    (\`limits.maxRegionCells\`); when you only need "which cells match"
    use \`tiled_select\`, for aggregate composition use
    \`tiled_analyze_usage\`, and for a visual read use
@@ -2161,7 +2163,7 @@ function parseGuideSections(source: string): GuideSection[] {
   return sections;
 }
 
-export const GUIDE_SECTIONS: readonly GuideSection[] = Object.freeze(
+const GUIDE_SECTIONS: readonly GuideSection[] = Object.freeze(
   parseGuideSections(GUIDE_SOURCE_TEXT),
 );
 

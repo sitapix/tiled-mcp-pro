@@ -17,7 +17,7 @@ const TILESET_CREATE_PLAN_HASH_DOMAIN =
 export const CREATE_TILESET_WARNING =
   "This creates one new external TSJ atlas tileset file with Tiled 1.12.2 canonical members. It never overwrites an existing file and does not modify any map; attach it afterwards with tiled_add_tileset_to_map.";
 
-export interface TilesetCreateImagePin {
+interface TilesetCreateImagePin {
   path: string;
   /**
    * Canonical POSIX reference relative to the created tileset's directory,
@@ -37,7 +37,7 @@ export interface AtlasGrid {
   unusedBottomPixels: number;
 }
 
-export interface TilesetCreateSummary {
+interface TilesetCreateSummary {
   tilesetPath: string;
   name: string;
   className: string | null;

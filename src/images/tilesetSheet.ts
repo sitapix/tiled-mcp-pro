@@ -86,7 +86,7 @@ export interface TilesetTilesInput extends TilesetAtlasSourceInput {
   scale?: number;
 }
 
-export interface TilesetSheetPage {
+interface TilesetSheetPage {
   index: number;
   count: number;
   requestedSize: number;
@@ -121,7 +121,7 @@ export interface TilesetSheetRender {
   scale: number;
 }
 
-export interface TilesetTilesSelection {
+interface TilesetTilesSelection {
   localIds: number[];
   count: number;
   order: "input";

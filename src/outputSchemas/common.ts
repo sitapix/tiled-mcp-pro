@@ -163,7 +163,7 @@ export const mapSnapshotOutputSchema = z
   })
   .strict();
 
-export const tileTransformOutputSchema = z
+const tileTransformOutputSchema = z
   .object({
     kind: z
       .enum(["orthogonal", "hexagonal"])
@@ -182,7 +182,7 @@ export const tileTransformOutputSchema = z
   })
   .strict();
 
-export const resolvedOrthogonalTransformOutputSchema =
+const resolvedOrthogonalTransformOutputSchema =
   z
     .object({
       kind: z.literal("orthogonal"),
@@ -197,7 +197,7 @@ export const resolvedOrthogonalTransformOutputSchema =
     })
     .strict();
 
-export const tileRefOutputSchema = z
+const tileRefOutputSchema = z
   .object({
     tileset: z.union([
       z
@@ -355,7 +355,7 @@ const checkpointPruneBeforeOutputSchema = z.union([
     }),
 ]);
 
-export const checkpointGarbageCollectionOutputSchema =
+const checkpointGarbageCollectionOutputSchema =
   z.union([
     checkpointGarbageCollectionCompletedOutputSchema,
     checkpointGarbageCollectionBlockedOutputSchema,
@@ -445,12 +445,12 @@ export const commitResultOutputSchema = z
   })
   .strict();
 
-export const documentApplyResultOutputSchema =
+const documentApplyResultOutputSchema =
   commitResultOutputSchema.extend({
     changeSetId: changeSetIdOutputSchema,
   });
 
-export const checkpointPruneApplyResultOutputSchema =
+const checkpointPruneApplyResultOutputSchema =
   z
     .object({
       kind: z.literal("checkpointPrune"),
@@ -1004,7 +1004,7 @@ export const preparedCheckpointAbandonApplyResultOutputSchema =
       }
     });
 
-export const preparedCheckpointDiscardApplyResultOutputSchema =
+const preparedCheckpointDiscardApplyResultOutputSchema =
   z
     .object({
       kind: z.literal(
@@ -1046,7 +1046,7 @@ export const preparedCheckpointDiscardApplyResultOutputSchema =
  * rather than a project document, so they have explicitly discriminated
  * success branches.
  */
-export const fileDeleteApplyResultOutputSchema =
+const fileDeleteApplyResultOutputSchema =
   z
     .object({
       kind: z.literal("fileDelete"),
@@ -1062,7 +1062,7 @@ export const fileDeleteApplyResultOutputSchema =
     })
     .strict();
 
-export const transactionApplyResultOutputSchema =
+const transactionApplyResultOutputSchema =
   z
     .object({
       kind: z.literal("transaction"),

@@ -4,8 +4,8 @@ import {
   type GenerateRegion,
 } from "./generate.js";
 
-export const MAX_SCATTER_CHOICES = 16;
-export const MAX_SCATTER_WEIGHT = 1_000_000;
+const MAX_SCATTER_CHOICES = 16;
+const MAX_SCATTER_WEIGHT = 1_000_000;
 
 export interface ScatterChoice<Tile> {
   tile: Tile;
@@ -13,7 +13,7 @@ export interface ScatterChoice<Tile> {
   weight: number;
 }
 
-export function validateScatterChoices<Tile>(
+function validateScatterChoices<Tile>(
   choices: readonly ScatterChoice<Tile>[],
 ): void {
   if (

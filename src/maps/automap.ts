@@ -56,7 +56,7 @@ import {
 /** The four visual-transform GID flag bits, Tiled's `Cell::VisualFlags`. */
 const VISUAL_FLAGS = GID_FLAGS_MASK;
 
-export interface AutomapOptions {
+interface AutomapOptions {
   deleteTiles: boolean;
   matchOutsideMap: boolean;
   overflowBorder: boolean;
@@ -69,7 +69,7 @@ export interface AutomapOptions {
  * Per-rule options. `skipChance` is stored inverted from the user-facing
  * `Probability` property, exactly as `AutoMapper::checkRuleOptions` does.
  */
-export interface AutomapRuleOptions {
+interface AutomapRuleOptions {
   skipChance: number;
   modX: number;
   modY: number;
@@ -80,7 +80,7 @@ export interface AutomapRuleOptions {
   ignoreLock: boolean;
 }
 
-export interface AutomapRuleOptionsArea {
+interface AutomapRuleOptionsArea {
   left: number;
   top: number;
   right: number;
@@ -88,7 +88,7 @@ export interface AutomapRuleOptionsArea {
   options: Partial<AutomapRuleOptions>;
 }
 
-export type AutomapRuleCell =
+type AutomapRuleCell =
   | {
       kind: "tile";
       /** Base GID re-expressed in the target map's GID space. */

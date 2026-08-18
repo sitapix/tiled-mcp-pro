@@ -24,13 +24,13 @@ export interface TileRef {
   transform?: Partial<TileTransform>;
 }
 
-export interface SetTilesOperation {
+interface SetTilesOperation {
   type: "setTiles";
   layerId: number;
   cells: Array<{ x: number; y: number; tile: TileRef | null }>;
 }
 
-export interface FillRegionOperation {
+interface FillRegionOperation {
   type: "fillRegion";
   layerId: number;
   x: number;
@@ -92,7 +92,7 @@ export interface CopyRegionOperation {
   };
 }
 
-export type MapRenderOrder =
+type MapRenderOrder =
   | "right-down"
   | "right-up"
   | "left-down"
@@ -110,7 +110,7 @@ export interface UpdateMapOperation {
   };
 }
 
-export interface ResizeMapOperation {
+interface ResizeMapOperation {
   type: "resizeMap";
   /**
    * New map size in tiles. Every tile layer must currently match the map
@@ -136,7 +136,7 @@ export interface RemoveTilesetFromMapOperation {
   tilesetAssetId: string;
 }
 
-export interface TranscodeTileLayerOperation {
+interface TranscodeTileLayerOperation {
   type: "transcodeTileLayer";
   layerId: number;
   /**
@@ -149,7 +149,7 @@ export interface TranscodeTileLayerOperation {
   compression?: "" | "gzip" | "zlib" | "zstd";
 }
 
-export interface ReplaceTilesOperation {
+interface ReplaceTilesOperation {
   type: "replaceTiles";
   layerId: number;
   mappings: Array<{
@@ -179,7 +179,7 @@ export interface ObjectPathPoint {
   y: number;
 }
 
-export interface ObjectTextFieldsInput {
+interface ObjectTextFieldsInput {
   text: string;
   fontFamily?: string;
   pixelSize?: number;
@@ -250,13 +250,13 @@ export type ObjectDraft =
       height: number;
     });
 
-export interface CreateObjectOperation {
+interface CreateObjectOperation {
   type: "createObject";
   layerId: number;
   object: ObjectDraft;
 }
 
-export interface UpdateObjectOperation {
+interface UpdateObjectOperation {
   type: "updateObject";
   objectId: number;
   patch: {
@@ -290,7 +290,7 @@ export interface UpdateObjectOperation {
   } & Partial<ObjectTextFieldsInput>;
 }
 
-export interface DeleteObjectsOperation {
+interface DeleteObjectsOperation {
   type: "deleteObjects";
   objectIds: number[];
 }
@@ -304,7 +304,7 @@ export interface DeleteObjectsOperation {
  * map-relative `source` reference; replay re-verifies both the pinned
  * revision and that `source` still resolves to `templatePath`.
  */
-export interface InstantiateTemplateOperation {
+interface InstantiateTemplateOperation {
   type: "instantiateTemplate";
   layerId: number;
   /** Canonical project path of the .tj template (pin verification). */
@@ -374,7 +374,7 @@ export interface MoveLayerOperation {
   index: number;
 }
 
-export type DuplicateLayerDestination =
+type DuplicateLayerDestination =
   | {
       kind: "sameParent";
       /**

@@ -15,7 +15,7 @@ import {
 
 export const MAX_WORLD_MAP_MEMBERS = 1_000;
 
-export interface WorldMapMemberProjection {
+interface WorldMapMemberProjection {
   fileName: string;
   x: number;
   y: number;

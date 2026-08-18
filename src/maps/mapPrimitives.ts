@@ -1466,6 +1466,35 @@ export function readCollectionTileIds(
   return localIds;
 }
 
+/**
+ * Serializes one region row of raw encoded GIDs as deterministic run-length
+ * runs: maximal runs left to right, `<gid>` for a single cell and
+ * `<gid>*<count>` for two or more, comma-separated. A JSON string row stays
+ * one line however a client pretty-prints the payload, which is the entire
+ * point: dense zero matrices were flooding agent context windows.
+ */
+export function encodeGidRowRle(
+  row: readonly number[],
+): string {
+  const runs: string[] = [];
+  let index = 0;
+  while (index < row.length) {
+    const gid = row[index]!;
+    let count = 1;
+    while (
+      index + count < row.length &&
+      row[index + count] === gid
+    ) {
+      count += 1;
+    }
+    runs.push(
+      count === 1 ? `${gid}` : `${gid}*${count}`,
+    );
+    index += count;
+  }
+  return runs.join(",");
+}
+
 export function gidToTileRef(
   gid: number,
   orientation: MapOrientation,

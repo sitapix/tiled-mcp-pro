@@ -1,6 +1,6 @@
 import { TiledMcpError } from "../errors.js";
 
-export type JsonPrimitive = boolean | number | string | null;
+type JsonPrimitive = boolean | number | string | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | JsonObject;
 export interface JsonObject {
   [key: string]: JsonValue;

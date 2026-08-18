@@ -1,12 +1,12 @@
 import { TiledMcpError } from "../errors.js";
 
 export const MAX_GENERATE_CELLS = 10_000;
-export const MAX_GENERATE_MAPPING_ENTRIES = 16;
-export const MAX_CELLULAR_ITERATIONS = 16;
-export const MAX_NOISE_SCALE = 256;
-export const MAX_DUNGEON_ROOMS = 64;
-export const MAX_DUNGEON_ROOM_ATTEMPTS = 256;
-export const MAX_DUNGEON_ROOM_SIZE = 64;
+const MAX_GENERATE_MAPPING_ENTRIES = 16;
+const MAX_CELLULAR_ITERATIONS = 16;
+const MAX_NOISE_SCALE = 256;
+const MAX_DUNGEON_ROOMS = 64;
+const MAX_DUNGEON_ROOM_ATTEMPTS = 256;
+const MAX_DUNGEON_ROOM_SIZE = 64;
 
 export interface GenerateRegion {
   x: number;
@@ -83,7 +83,7 @@ export function hashToUnit(
  * region reproduces the identical layout at its new location.
  * Math.random never appears anywhere in this module.
  */
-export function createUnitStream(
+function createUnitStream(
   seed: number,
 ): () => number {
   let state = seed >>> 0;
@@ -102,7 +102,7 @@ function smoothstep(t: number): number {
 }
 
 /** Smooth value noise: lattice hashes blended with smoothstep weights. */
-export function valueNoise(
+function valueNoise(
   seed: number,
   x: number,
   y: number,

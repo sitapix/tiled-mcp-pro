@@ -89,7 +89,7 @@ export interface TransactionCommitResult {
   warnings?: string[];
 }
 
-export interface TransactionRecoveryConflict {
+interface TransactionRecoveryConflict {
   transactionId: string;
   path: string;
   reason:

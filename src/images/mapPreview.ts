@@ -165,7 +165,7 @@ export interface NativePreviewAtlas {
   collectionLocalId?: number;
 }
 
-export interface NativePreviewOverlayInput {
+interface NativePreviewOverlayInput {
   grid: boolean;
   coordinates: boolean;
   highlights?: readonly NativePreviewHighlightInput[];
@@ -179,7 +179,7 @@ export interface NativePreviewHighlightInput {
   height: number;
 }
 
-export interface NativePreviewHighlightRenderEntry {
+interface NativePreviewHighlightRenderEntry {
   sourceIndex: number;
   requestedTileRect: NativePreviewHighlightInput;
   renderedTileRect: NativePreviewHighlightInput;
@@ -195,7 +195,7 @@ export interface NativePreviewHighlightRenderMetadata {
   entries: readonly NativePreviewHighlightRenderEntry[];
 }
 
-export type NativePreviewObjectShape =
+type NativePreviewObjectShape =
   | "rectangle"
   | "point"
   | "ellipse"
@@ -205,7 +205,7 @@ export type NativePreviewObjectShape =
   | "text"
   | "tile";
 
-export type NativePreviewObjectRepresentation =
+type NativePreviewObjectRepresentation =
   | "geometry-outline"
   | "text-box-only"
   | "tile-frame-only"
@@ -241,7 +241,7 @@ export interface NativePreviewCollisionShapeInput {
   points?: readonly NativePreviewObjectPoint[];
 }
 
-export interface NativePreviewObjectPoint {
+interface NativePreviewObjectPoint {
   x: number;
   y: number;
 }
@@ -267,7 +267,7 @@ export interface NativePreviewObjectInput {
   collisionShapes?: readonly NativePreviewCollisionShapeInput[];
 }
 
-export interface NativePreviewObjectRenderEntry {
+interface NativePreviewObjectRenderEntry {
   sourceIndex: number;
   objectId: number;
   layerId: number;
@@ -278,7 +278,7 @@ export interface NativePreviewObjectRenderEntry {
   collisionObjectCount?: number;
 }
 
-export interface NativePreviewObjectRenderMetadata {
+interface NativePreviewObjectRenderMetadata {
   profile: typeof NATIVE_PREVIEW_OBJECT_PROFILE;
   style: typeof NATIVE_PREVIEW_OBJECT_STYLE;
   color: typeof NATIVE_PREVIEW_OBJECT_COLOR;
@@ -334,13 +334,11 @@ export interface RenderNativePreviewInput {
   backgroundColor?: string;
 }
 
-export const BASE_OBJECT_FILL_ALPHA = 50;
-export const BASE_OBJECT_POINT_RADIUS = 10;
-export const BASE_OBJECT_DEFAULT_COLOR =
-  "#808080";
-export const MAX_NATIVE_PREVIEW_OBJECT_FILL_BLENDS = 8_000_000;
+const BASE_OBJECT_FILL_ALPHA = 50;
+const BASE_OBJECT_POINT_RADIUS = 10;
+const MAX_NATIVE_PREVIEW_OBJECT_FILL_BLENDS = 8_000_000;
 
-export interface NativePreviewObjectLayerRenderSummary {
+interface NativePreviewObjectLayerRenderSummary {
   id: number;
   name: string;
   drawOrder: "topdown" | "index";

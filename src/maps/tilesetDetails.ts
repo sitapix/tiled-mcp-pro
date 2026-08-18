@@ -112,7 +112,7 @@ export interface TilesetTileClass {
   truncated: boolean;
 }
 
-export type ProjectedCollisionShape =
+type ProjectedCollisionShape =
   | {
       index: number;
       id?: number;

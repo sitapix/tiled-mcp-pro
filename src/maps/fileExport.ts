@@ -85,7 +85,7 @@ function isValidFileExportOptions(
   );
 }
 
-export interface FileExportSummary {
+interface FileExportSummary {
   sourcePath: string;
   targetPath: string;
   exportKind: "map" | "tileset" | "template";

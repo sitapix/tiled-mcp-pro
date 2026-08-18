@@ -66,13 +66,13 @@ export const CHECKPOINT_BATCH_PRUNE_STORE_LOCK_WARNING =
   "Checkpoint batch pruning deleted one or more manifests, but release of the checkpoint-store lock could not be confirmed.";
 export const CHECKPOINT_BATCH_PRUNE_DURABILITY_WARNING =
   "Checkpoint batch pruning observed a manifest unlink whose directory durability could not be confirmed; later approved deletions were not attempted.";
-export const CHECKPOINT_BATCH_PRUNE_STOPPED_WARNING =
+const CHECKPOINT_BATCH_PRUNE_STOPPED_WARNING =
   "Checkpoint batch pruning stopped after deleting a prefix; the other approved manifest deletions remain unresolved and require a fresh list and preview.";
 export const CHECKPOINT_BATCH_PRUNE_GC_BLOCKED_WARNING =
   "Checkpoint batch pruning deleted every approved manifest, but garbage collection was blocked; unreferenced checkpoint storage was retained.";
-export const CHECKPOINT_BATCH_PRUNE_GC_FAILED_WARNING =
+const CHECKPOINT_BATCH_PRUNE_GC_FAILED_WARNING =
   "Checkpoint batch pruning deleted every approved manifest, but garbage collection could not be completed; unreferenced checkpoint storage may remain.";
-export const CHECKPOINT_BATCH_PRUNE_GC_NOT_RUN_WARNING =
+const CHECKPOINT_BATCH_PRUNE_GC_NOT_RUN_WARNING =
   "Checkpoint batch pruning stopped after a manifest unlink, so garbage collection was not run.";
 
 export const CHECKPOINT_STORAGE_POLICY = Object.freeze({
@@ -212,7 +212,7 @@ export interface CheckpointStoreOptions {
   observer?: CheckpointStoreObserver;
 }
 
-export interface CheckpointGarbageCollectionBlocker {
+interface CheckpointGarbageCollectionBlocker {
   directory: "checkpoints" | "objects";
   fileName?: string;
   reason:
@@ -300,21 +300,7 @@ export interface CheckpointManifest {
       };
 }
 
-export type LegacyCheckpointManifest =
-  CheckpointManifest & {
-    version: 1;
-    retention?: never;
-  };
-
-export type ProtectedCheckpointManifest =
-  CheckpointManifest & {
-    version: 2;
-    retention: {
-      class: "protected";
-    };
-  };
-
-export type RollingCheckpointManifest =
+type RollingCheckpointManifest =
   CheckpointManifest & {
     version: 2;
     retention: {
@@ -395,7 +381,7 @@ export interface PreparedCheckpointAdjudicationStorageExpectation {
   conflict: PreparedCheckpointAdjudicationConflict;
 }
 
-export type CheckpointManifestDeletionGarbageCollectionResult =
+type CheckpointManifestDeletionGarbageCollectionResult =
   | {
       status: "completed";
       deletedBytes: number;
@@ -426,7 +412,7 @@ export type CheckpointManifestDeletionGarbageCollectionResult =
 export type CheckpointPruneGarbageCollectionResult =
   CheckpointManifestDeletionGarbageCollectionResult;
 
-export type RollingCheckpointRetentionBlockedReason =
+type RollingCheckpointRetentionBlockedReason =
   | "current-checkpoint-changed"
   | "current-not-highest-rolling"
   | "incomplete-inventory"
@@ -478,7 +464,7 @@ export interface CheckpointBatchPruneStorageExpectation
   retention?: CheckpointManifest["retention"];
 }
 
-export type CheckpointBatchPruneOutcome =
+type CheckpointBatchPruneOutcome =
   | {
       checkpointId: string;
       path: string;
@@ -502,7 +488,7 @@ export type CheckpointBatchPruneOutcome =
         "batch-stopped-before-checkpoint";
     };
 
-export type CheckpointBatchPruneGarbageCollectionResult =
+type CheckpointBatchPruneGarbageCollectionResult =
   | CheckpointManifestDeletionGarbageCollectionResult
   | {
       status: "not-run";

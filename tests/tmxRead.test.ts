@@ -171,10 +171,10 @@ describe("TMX read-only core", () => {
     expect(csvRegion).toMatchObject({
       format: "tmx",
       profile: "tmx-read-only-region-v1",
-      cellSemantics: "raw-encoded-gids",
+      cellSemantics: "rle-encoded-gids",
       rows: [
-        [1, 0],
-        [0, 2],
+        "1,0",
+        "0,2",
       ],
       tilesets: [
         {
@@ -195,8 +195,8 @@ describe("TMX read-only core", () => {
         height: 2,
       });
     expect(encodedRegion.rows).toEqual([
-      [0, 0],
-      [0, 0],
+      "0*2",
+      "0*2",
     ]);
     await expect(
       harness.service.getRegion({

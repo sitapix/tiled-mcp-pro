@@ -33,13 +33,13 @@ import { TiledMcpError } from "../errors.js";
  * `[top, topRight, right, bottomRight, bottom, bottomLeft, left, topLeft]`.
  * A slot value of 0 means unset; anything else is a 1-based colour index.
  */
-export const WANG_SLOT_TOP_RIGHT = 1;
-export const WANG_SLOT_BOTTOM_RIGHT = 3;
-export const WANG_SLOT_BOTTOM_LEFT = 5;
-export const WANG_SLOT_TOP_LEFT = 7;
+const WANG_SLOT_TOP_RIGHT = 1;
+const WANG_SLOT_BOTTOM_RIGHT = 3;
+const WANG_SLOT_BOTTOM_LEFT = 5;
+const WANG_SLOT_TOP_LEFT = 7;
 
 /** The four corner slots, in the order this module reports them. */
-export const WANG_CORNER_SLOTS = [
+const WANG_CORNER_SLOTS = [
   WANG_SLOT_TOP_LEFT,
   WANG_SLOT_TOP_RIGHT,
   WANG_SLOT_BOTTOM_RIGHT,
@@ -53,7 +53,7 @@ export interface WangTileEntry {
   wangId: readonly number[];
 }
 
-export interface WangCornerAssignment {
+interface WangCornerAssignment {
   /** Corner-grid x, in `[0, width]`. */
   x: number;
   /** Corner-grid y, in `[0, height]`. */

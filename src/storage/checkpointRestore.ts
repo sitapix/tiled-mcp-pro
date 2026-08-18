@@ -17,7 +17,7 @@ const PLAN_ID_PATTERN = /^changeset:[0-9a-f]{64}$/u;
 const RESTORE_PLAN_HASH_DOMAIN =
   "tiledmcp/checkpoint-restore-plan/v1\0";
 
-export const CHECKPOINT_RESTORE_WARNING =
+const CHECKPOINT_RESTORE_WARNING =
   "This replaces the target document with the checkpoint's exact pre-write bytes. Referenced tilesets, images and other files are not restored.";
 
 export interface CheckpointRestoreSummary {

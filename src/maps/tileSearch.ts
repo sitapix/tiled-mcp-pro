@@ -35,10 +35,10 @@ export const TILE_FIND_PROPERTY_EQUALS_TYPES = [
   "file",
 ] as const;
 
-export type TileFindPropertyEqualsType =
+type TileFindPropertyEqualsType =
   (typeof TILE_FIND_PROPERTY_EQUALS_TYPES)[number];
 
-export type TileFindClause =
+type TileFindClause =
   | {
       kind: "class";
       equals: string;

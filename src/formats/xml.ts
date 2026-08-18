@@ -1,9 +1,9 @@
 import { TiledMcpError } from "../errors.js";
 
-export const MAX_XML_BYTES = 32 * 1024 * 1024;
-export const MAX_XML_DEPTH = 64;
-export const MAX_XML_NODES = 500_000;
-export const MAX_XML_ATTRIBUTES_PER_ELEMENT = 64;
+const MAX_XML_BYTES = 32 * 1024 * 1024;
+const MAX_XML_DEPTH = 64;
+const MAX_XML_NODES = 500_000;
+const MAX_XML_ATTRIBUTES_PER_ELEMENT = 64;
 
 /**
  * One parsed XML element. Text content is concatenated across child text
