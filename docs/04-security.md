@@ -1,54 +1,63 @@
-# TiledMCP Pro 文件系统威胁模型
+# TiledMCP Pro Filesystem Threat Model
 
-> **状态：Frozen v1（direct filesystem backend）。** 本文冻结的是当前文件系统后端的
-> 信任边界，不代表所有本机攻击面都已被消除。权威机器值由
-> `tiled_get_capabilities.filesystemThreatModelContract` 返回；其
-> `name` 为 `tiled-mcp-direct-filesystem-threat-model`，`version` 为 `1`。
-> v1 任一字段或值发生语义变化都必须提升版本。
+> **Status: Frozen v1 (direct filesystem backend).** What this document freezes is the trust
+> boundary of the current filesystem backend; it does not mean every local attack surface has
+> been eliminated. The authoritative machine values are returned by
+> `tiled_get_capabilities.filesystemThreatModelContract`; its
+> `name` is `tiled-mcp-direct-filesystem-threat-model` and its `version` is `1`.
+> Any semantic change to any v1 field or value must bump the version.
 
-该 contract 的 `scope` 只覆盖 direct backend 提交的项目资产 JSON 文档目标。locks、
-checkpoint manifests、content-addressed objects 与 asset registry 等 `.tiledmcp`
-server-internal state 明确不在此 scope；它们分别由 checkpoint、asset identity 等契约和
-实现规则约束，不能从本文的 document promotion 保证中推导内部 metadata 的写入语义。
+The contract's `scope` covers only the project-asset JSON document targets committed by the
+direct backend. `.tiledmcp` server-internal state — locks, checkpoint manifests,
+content-addressed objects, and the asset registry — is explicitly outside this scope; it is
+governed by the checkpoint, asset identity, and other contracts and implementation rules, and
+the write semantics of internal metadata must not be derived from this document's document
+promotion guarantees.
 
-## 1. 受支持的部署模型
+## 1. Supported deployment model
 
-v1 面向一个显式配置的本地项目根目录，并要求：
+v1 targets one explicitly configured local project root directory, and requires:
 
-- 所有合作写者针对同一逻辑目标使用同一个规范化 project-relative POSIX path，并遵守
-  TiledMCP Pro 的锁协议；
-- 项目位于支持同文件系统原子 `rename`、hard link、文件 `fsync` 和目录 `fsync` 的本地
-  文件系统；分布式/网络文件系统语义尚未验证；
-- 项目根及其父目录不会被同权限恶意进程在一次操作中主动替换；
-- Tiled GUI、同步程序和其他不遵守锁的写者不会与既有目标提交并发保存。
+- all cooperating writers use one and the same canonical project-relative POSIX path for the
+  same logical target, and follow TiledMCP Pro's lock protocol;
+- the project lives on a local filesystem that supports same-filesystem atomic `rename`, hard
+  links, file `fsync`, and directory `fsync`; distributed/network filesystem semantics have
+  not been validated;
+- the project root and its parent directories are not actively swapped out mid-operation by a
+  malicious process running with the same privileges;
+- the Tiled GUI, sync programs, and other writers that do not honor the locks do not save
+  concurrently with an existing-target commit.
 
-这些是运维方必须验收的前提。服务器会传播实际 syscall failure，但不会探测或证明底层
-文件系统真正实现了声明的原子性、锁或 durability 语义，尤其不会验证分布式文件系统。
+These are preconditions the operator must sign off on. The server propagates actual syscall
+failures, but it does not probe or prove that the underlying filesystem truly implements the
+declared atomicity, locking, or durability semantics — and in particular it does not validate
+distributed filesystems.
 
-若部署必须抵御同权限恶意本机进程，direct filesystem backend 不够。应使用容器、
-`openat2` 等 OS 沙箱与 descriptor-relative 路径策略，或把所有写入强制经过
-FUSE/write broker；这些后端当前尚未实现。
+If a deployment must withstand an equally privileged malicious local process, the direct
+filesystem backend is not enough. Use containers, OS sandboxing such as `openat2` with
+descriptor-relative path policies, or force all writes through a
+FUSE/write broker; these backends are not implemented yet.
 
-## 2. 已保证的边界
+## 2. Guaranteed boundaries
 
-| 范围 | v1 保证 |
+| Scope | v1 guarantee |
 |---|---|
-| Revision | 已存在文件的精确原始 bytes SHA-256；不是 generation，恢复成相同 bytes 的 ABA 仍是同一 revision |
-| 同进程写者 | 按规范化项目路径的 mutex 串行 |
-| 合作跨进程写者 | lock file + 锁内最终完整 SHA-256 检查；stale lock fail closed，不自动抢占 |
-| 既有目标 promotion | 同目录 staging 写入并 `fsync` 后，用无条件原子 `rename` 替换 |
-| 不存在目标 promotion | 同目录 staging 写入并 `fsync` 后，用 hard link 实现原子 no-replace；`EEXIST` 必然拒绝 |
-| 静态路径 | 拒绝非规范路径、越界、预先存在的 symlink 和非普通文件；读 final component 时在平台支持下使用 no-follow |
-| promotion 后失败 | 只有本次调用已安装目标且回读 bytes 的 SHA-256 匹配 proposed revision，才把后续 durability 失败降为 warning |
-| 可见性 | 单路径 old-or-new 可见性；不承诺跨文件原子快照或事务 |
+| Revision | SHA-256 of the exact raw bytes of an existing file; not a generation — an ABA that restores identical bytes is still the same revision |
+| Same-process writers | Serialized by a mutex keyed on the canonical project path |
+| Cooperating cross-process writers | Lock file + final full SHA-256 check inside the lock; stale locks fail closed, never auto-preempted |
+| Existing-target promotion | Staged write in the same directory plus `fsync`, then replacement via an unconditional atomic `rename` |
+| Missing-target promotion | Staged write in the same directory plus `fsync`, then atomic no-replace via hard link; `EEXIST` always rejects |
+| Static paths | Rejects non-canonical paths, escapes, pre-existing symlinks, and non-regular files; reads the final component with no-follow where the platform supports it |
+| Post-promotion failure | Subsequent durability failures are downgraded to a warning only when this call has installed the target and the SHA-256 of the read-back bytes matches the proposed revision |
+| Visibility | Single-path old-or-new visibility; no cross-file atomic snapshot or transaction is promised |
 
-这些保证只有在第 1 节的运维条件成立时有效。
+These guarantees hold only while the operational conditions of section 1 hold.
 
-## 3. 明确不保证
+## 3. Explicitly not guaranteed
 
-### 3.1 非合作写者的既有目标 CAS
+### 3.1 Existing-target CAS against non-cooperating writers
 
-既有目标提交的顺序是：
+The sequence of an existing-target commit is:
 
 ```text
 final full-byte SHA-256 check
@@ -58,175 +67,229 @@ final full-byte SHA-256 check
 unconditional rename(temp, target)
 ```
 
-portable Node `fs` 没有“目标仍匹配某个 SHA-256 才替换”的原子 primitive。普通
-`rename`、`renameat2(RENAME_NOREPLACE)` 和 hard link 都不能给已存在目标增加该 predicate。
-因此：
+Portable Node `fs` has no atomic primitive for "replace only if the target still matches a
+given SHA-256". Plain `rename`, `renameat2(RENAME_NOREPLACE)`, and hard links cannot add that
+predicate to an existing target. Therefore:
 
-- 最终检查前已经可见的不同 bytes 会返回 `REVISION_CONFLICT`；
-- 最终检查完成后、`rename` 前的非合作保存仍可能被覆盖；
-- 一次成功 promotion 只证明该事件曾发生，不是“响应时目标仍是该 revision”的 lease；
-- 需要当前状态时必须重新读取，不能依赖成功响应或 change-set replay。
+- different bytes already visible before the final check return `REVISION_CONFLICT`;
+- a non-cooperating save that lands after the final check completes and before the `rename`
+  can still be overwritten;
+- a successful promotion only proves that the event happened; it is not a lease that the
+  target is still that revision at response time;
+- when current state is needed it must be re-read; a successful response or a change-set
+  replay must not be relied on.
 
-`tiled_create_map` 不使用该既有目标路径。它的 hard-link no-replace 对“另一个进程抢先
-创建目标”的竞态提供更强保证，即使外部 bytes 相同也不会认领为本次成功。
+`tiled_create_map` does not use this existing-target path. Its hard-link no-replace gives a
+stronger guarantee against the race where another process creates the target first: even if
+the external bytes are identical, it is never claimed as this call's success.
 
 ### 3.2 Path check-to-use race
 
-`lstat`、`realpath` 和 final-component no-follow 能拒绝静态 symlink，却不能让一串普通
-Node path API 变成 descriptor-relative sandbox。同权限恶意进程若在检查后替换中间父目录，
-可能改变后续 `open`、`rename` 或 `link` 的实际命名空间目标。v1 把这类 hostile parent
-swap 明确列为 unsupported，而不是声称已由路径规范化解决。
+`lstat`, `realpath`, and final-component no-follow can reject static symlinks, but they cannot
+turn a chain of plain Node path APIs into a descriptor-relative sandbox. An equally privileged
+malicious process that swaps an intermediate parent directory after the check may change the
+actual namespace target of a subsequent `open`, `rename`, or `link`. v1 explicitly lists this
+kind of hostile parent swap as unsupported, rather than claiming path canonicalization has
+solved it.
 
-### 3.3 其他不保证
+### 3.3 Other non-guarantees
 
-- 不提供 target inode/metadata CAS；
-- 不提供跨文件原子性，map + TSJ + image 仍是 `non-atomic-read-set`；
-- 不保证异常断电后的所有文件系统/硬件 durability；
-- 不验证 distributed filesystem 的锁、hard-link、rename 或 `fsync` 语义；
-- 不提供 mediated writer backend。
+- no target inode/metadata CAS is provided;
+- no cross-file atomicity is provided — map + TSJ + image remains a `non-atomic-read-set`;
+- no durability guarantee across all filesystems/hardware after abnormal power loss;
+- no validation of distributed filesystem lock, hard-link, rename, or `fsync` semantics;
+- no mediated writer backend is provided.
 
-## 4. 锁和 hardlink alias
+## 4. Locks and hardlink aliases
 
-锁键来自规范化项目路径，不来自 inode。两个不同路径即使是同一个 hardlink inode，也不会
-自动共享一把锁。因此受支持的合作写者模型要求“一个逻辑目标只使用一个规范化项目路径”。
-如果项目故意用多个 hardlink alias 指向同一 TMJ/TSJ，调用方必须在外部统一串行，不能把
-TiledMCP Pro 的路径锁解释成 inode 锁。
+Lock keys come from the canonical project path, not from the inode. Two distinct paths never
+automatically share a lock, even when they are the same hardlink inode. The supported
+cooperating-writer model therefore requires "one canonical project path per logical target".
+If a project deliberately points multiple hardlink aliases at the same TMJ/TSJ, callers must
+serialize externally as a whole; TiledMCP Pro's path locks must not be interpreted as inode
+locks.
 
-stale lock 永远 fail closed。手动删除前必须确认原 PID/写者已不再活动；PID 存活检查不是
-租约，也不会自动判断锁已安全过期。
+Stale locks always fail closed. Before deleting one manually, confirm that the original
+PID/writer is no longer active; the PID liveness check is not a lease, and never automatically
+decides that a lock has safely expired.
 
-## 5. Change set 与依赖语义
+## 5. Change sets and dependency semantics
 
-- change set 固定 map revision、依赖 revisions、计划 digest、连接和 TTL；
-- apply 会重算计划并复核这些 pin，但多个依赖与 map 提交不是同一原子读集；
-- 成功后的相同 `changeSetId` replay 返回首次缓存结果，不重新验证当前磁盘状态；
-- 外部写者在最后一次依赖复核后仍可能改变依赖；
-- 因此每次需要“当前”结论时都应重新读取 map summary/依赖，而不是把 replay 当查询。
+- a change set pins the map revision, dependency revisions, plan digest, connection, and TTL;
+- apply recomputes the plan and re-checks these pins, but the multiple dependencies and the
+  map commit are not one atomic read set;
+- replaying the same `changeSetId` after success returns the first cached result and does not
+  re-validate current on-disk state;
+- an external writer can still change a dependency after the last dependency re-check;
+- therefore, whenever a "current" conclusion is needed, re-read the map summary/dependencies
+  instead of treating replay as a query.
 
-## 6. 运维清单
+## 6. Operational checklist
 
-执行任何既有目标提交前：
+Before performing any existing-target commit:
 
-1. 确认项目位于满足 v1 原子性与 `fsync` 语义的本地文件系统；
-2. 暂停 Tiled autosave、文件同步器和其他非合作写者；
-3. 确保同一逻辑文件没有通过另一个 hardlink alias 被编辑；
-4. 不在不可信的共享写目录中运行 direct backend；
-5. 提交成功后，如后续决策依赖当前状态，重新读取 revision；
-6. 监控 stale locks、prepared checkpoints 和
-   `checkpointCapabilities.storagePolicy` 报告的 quota；quota/GC 属于
-   `.tiledmcp` internal-state contract，不属于本文 document-target scope。
+1. Confirm the project lives on a local filesystem satisfying the v1 atomicity and `fsync`
+   semantics;
+2. Pause Tiled autosave, file synchronizers, and other non-cooperating writers;
+3. Ensure the same logical file is not being edited through another hardlink alias;
+4. Do not run the direct backend in an untrusted shared-writable directory;
+5. After a successful commit, re-read the revision when later decisions depend on current
+   state;
+6. Monitor stale locks, prepared checkpoints, and the quota reported by
+   `checkpointCapabilities.storagePolicy`; quota/GC belongs to the
+   `.tiledmcp` internal-state contract, not to this document's document-target scope.
 
-如果无法满足第 2～4 项，应把当前后端视为只读，或部署强制写入中介。
+If items 2–4 cannot be satisfied, treat the current backend as read-only, or deploy a
+mandatory write mediator.
 
-## 7. 与其他契约的关系
+## 7. Relationship to other contracts
 
-- `safetyStatus` 只保留 JSON 词法保真摘要；文件系统安全边界以本 v1 contract 为准；
-- `mapCreationCapabilities` 进一步冻结 create-map 的 no-replace 特例；
-- `assetIdentityContract` 只描述 opaque ID/registry，不把 file identity 当写入 CAS；
-  registry 属于本 contract 明确排除的 server-internal state；
-- `snapshotConsistency:"non-atomic-read-set"` 继续描述跨文件读取；
-- `applicationErrorContract` 描述应用错误 wire，不扩大本威胁模型的保证。
+- `safetyStatus` retains only the JSON lexical-fidelity summary; the filesystem safety
+  boundary is governed by this v1 contract;
+- `mapCreationCapabilities` further freezes the create-map no-replace special case;
+- `assetIdentityContract` describes only the opaque ID/registry and does not treat file
+  identity as a write CAS; the registry is server-internal state explicitly excluded from
+  this contract;
+- `snapshotConsistency:"non-atomic-read-set"` continues to describe cross-file reads;
+- `applicationErrorContract` describes the application-error wire and does not widen this
+  threat model's guarantees.
 
-## 8. 与 checkpoint rolling retention 的关系
+## 8. Relationship to checkpoint rolling retention
 
-checkpoint retention 属于本文明确排除的 `.tiledmcp` internal-state contract，但它删除
-recovery point 前仍依赖本文的合作写者和安全普通目标读取前提。默认不启用；只有
+Checkpoint retention belongs to the `.tiledmcp` internal-state contract this document
+explicitly excludes, but before it deletes a recovery point it still depends on this
+document's cooperating-writer and safe regular-target-read preconditions. It is disabled by
+default; only the process startup configuration
 `--checkpoint-retain-per-target N` /
-`TILEDMCP_CHECKPOINT_RETAIN_PER_TARGET=N` 的进程启动配置才构成 standing approval，
-且 `N` 至少为 2。
+`TILEDMCP_CHECKPOINT_RETAIN_PER_TARGET=N` constitutes standing approval,
+and `N` is at least 2.
 
-启用不会扩大 direct backend 的保证。自动策略只处理带 durable ordinal 的 v2
-`rolling` existing-file committed manifest；legacy、protected/create 与 prepared
-manifest 永远保留。它仍在当前 target lock 内取 checkpoint-store lock，重新读取目标并
-要求 revision 等于最新 rolling checkpoint 的 `afterRevision`。任一非合作目标写入、
-内部状态漂移、完整 inventory 或 object hash/size 校验失败都会令本轮零删除。revision
-仍只是 bytes identity，不是 generation；顺序来自内部 durable ordinal，不从 SHA-256、
-wall clock、mtime、UUID 或 label 推导。
+Enabling it does not widen the direct backend's guarantees. The automatic policy handles only
+v2 `rolling` existing-file committed manifests carrying a durable ordinal; legacy,
+protected/create, and prepared manifests are always retained. It still takes the
+checkpoint-store lock inside the current target lock, re-reads the target, and requires the
+revision to equal the newest rolling checkpoint's `afterRevision`. Any non-cooperating target
+write, internal state drift, or failed full-inventory or object hash/size verification makes
+the round delete zero entries. The revision is still bytes identity only, not a generation;
+ordering comes from the internal durable ordinal, and is never derived from SHA-256,
+wall clock, mtime, UUID, or label.
 
-retention 不在 quota-pressure 或 `ensureCapacity()` 中运行。新 checkpoint 必须先完整
-发布且 durable 标记 committed；目标 promotion 有 durability warning 时跳过本轮。这样，
-新写入或配额检查失败不会先删除旧恢复点，也不会引入 `store → target` 反向锁序。manifest
-manifest unlink 是独立 destructive commit point，随后 checkpoint 目录 fsync 确认
-耐久性；其后的 GC/锁故障在成功
-document mutation 的有界结果中报告，不能解释为目标写入可以安全重试。
+Retention does not run under quota pressure or inside `ensureCapacity()`. A new checkpoint
+must first be fully published and durably marked committed; the round is skipped when the
+target promotion carried a durability warning. This way, a failed new write or quota check
+never deletes old recovery points first, and no `store → target` reverse lock order is
+introduced. The manifest
+unlink is an independent destructive commit point, followed by a checkpoint-directory fsync to
+confirm durability; GC/lock failures after it are reported in the bounded result of the
+successful
+document mutation, and must not be interpreted as the target write being safely retryable.
 
-## 9. 显式 committed checkpoint batch prune
+## 9. Explicit committed checkpoint batch prune
 
-`tiled_preview_checkpoint_prune_batch` 属于 `.tiledmcp` internal-state 删除契约，不扩大
-第 2 节的项目资产 document-promotion 保证。它也不是自动 retention：调用方必须从当前
-checkpoint 列表明确提供 2..32 个 UUID；服务端先 lowercase 规范化、拒绝规范化后的重复
-项，不会按 ordinal、createdAt、label、存储压力或其他启发式自动选择 victim。批次按
-canonical checkpoint ID 排序；preview 必须把这个 execution order、完整成员 manifest
-pins 和非原子/可部分提交 warning 展示给批准者。
+`tiled_preview_checkpoint_prune_batch` belongs to the `.tiledmcp` internal-state deletion
+contract and does not widen section 2's project-asset document-promotion guarantees. Nor is it
+automatic retention: the caller must explicitly supply 2..32 UUIDs from the current checkpoint
+listing; the server first lowercase-normalizes them and rejects post-normalization
+duplicates, and never auto-selects victims by ordinal, createdAt, label, storage pressure, or
+any other heuristic. The batch is ordered by canonical checkpoint ID; the preview must present
+this execution order, the complete member manifest
+pins, and the non-atomic/partially-committable warning to the approver.
 
-apply 先验证计划，再把成员 target path 规范化、去重并按确定性路径顺序取得**全部**
-target mutex/file locks，之后才取得唯一 checkpoint-store lock。相同 target 只锁一次，
-所有 batch 使用相同 target 排序；store lock 内不得反向获取 target lock。该顺序阻止合作式
-retention 或其他 checkpoint writer 在预检与删除之间修改计划成员。它仍是 path lock，
-不是 inode lock；第 4 节的 hardlink alias 运维前提同样适用。
+Apply first validates the plan, then canonicalizes and deduplicates the member target paths
+and acquires **all** target mutex/file locks in a deterministic path order, and only then
+acquires the single checkpoint-store lock. The same target is locked only once, and every
+batch uses the same target ordering; no target lock may be acquired in reverse inside the
+store lock. This ordering prevents cooperative
+retention or another checkpoint writer from modifying the plan members between the pre-check
+and the deletion. It is still a path lock,
+not an inode lock; section 4's hardlink-alias operational preconditions apply equally.
 
-首次 manifest unlink 前，内核在这些锁内权威重读全部选中成员，逐项核对 regular/no-follow
-文件、raw SHA-256、size、完整 metadata、canonical path 与 `committed` status。任一成员
-已被 retention/其他 prune 删除，或 bytes/path/status 漂移，都会令整个 batch 零删除。
-这个 pin barrier 有意不读取 stored-before blob，也不要求 global inventory/object 完整：
-操作者批准的是这些精确 manifests，无关损坏条目不能变成阻止修复性 prune 的全局 DoS。
-缺失/损坏 blob 只代表该 recovery point 可能已不可恢复；其他 prepared/committed manifest
-仍在最终 GC 中作为 roots。被选成员若漂为 prepared 则由 status/CAS fail closed。
+Before the first manifest unlink, the core authoritatively re-reads every selected member
+inside these locks, checking each one for a regular/no-follow file, raw SHA-256, size,
+complete metadata, canonical path, and `committed` status. Any member
+already deleted by retention/another prune, or any bytes/path/status drift, makes the entire
+batch delete zero entries.
+This pin barrier deliberately does not read the stored-before blob, and does not require
+global inventory/object completeness: what the operator approved are these exact manifests,
+and an unrelated corrupt entry must not become a global DoS that blocks a remedial prune.
+A missing/corrupt blob only means that recovery point may no longer be restorable; the other
+prepared/committed manifests still serve as roots in the final GC. A selected member that has
+drifted to prepared fails closed via the status/CAS.
 
-跨 manifest 不提供原子性。通过 barrier 后按 canonical ID 顺序逐项 `unlink`，每项后立即
-fsync checkpoint 目录，并在首个成员 CAS/unlink/fsync/post-delete 故障时停止：
+No atomicity is provided across manifests. After passing the barrier, members are `unlink`ed
+one by one in canonical ID order, with a checkpoint-directory fsync immediately after each,
+stopping at the first member CAS/unlink/fsync/post-delete failure:
 
-- 尚无 unlink 成功：返回零删除应用错误，可以重新 list/preview；
-- 至少一个 unlink 成功：返回并缓存有界 `partial` 或 `completed` success，`outcomes`
-  明确区分 `deleted`、`failed` 和 `not-attempted`；
-- unlink 后 fsync 失败：该成员已删除但 durability unconfirmed，不能作为“未发生”重试；
-- 同一 `changeSetId` 的并发或后续 replay 只返回首次缓存结果，绝不继续未尝试成员；
-- 只有全部 manifests 都成功删除并逐项 fsync 后才运行一次 fail-closed GC；partial 时
-  GC 为 not-run，孤儿对象保留给后续完整 sweep。
+- no unlink has succeeded yet: a zero-deletion application error is returned, and
+  list/preview can be re-run;
+- at least one unlink succeeded: a bounded `partial` or `completed` success is returned and
+  cached, with `outcomes` explicitly distinguishing `deleted`, `failed`, and `not-attempted`;
+- fsync fails after an unlink: that member is deleted but its durability is unconfirmed, and
+  it must not be retried as if it "did not happen";
+- a concurrent or later replay of the same `changeSetId` only returns the first cached
+  result, and never proceeds with not-attempted members;
+- a single fail-closed GC runs only after all manifests have been successfully deleted and
+  individually fsynced; on partial,
+  GC is not-run, and orphaned objects are left for a later full sweep.
 
-因此 batch change set 不是 durable job、lease 或 resume token。响应丢失但进程仍存活时，
-相同 ID replay 取得缓存结果；进程重启或 TTL 到期后旧 ID 不存在，客户端必须重新列举磁盘
-事实并为仍存在的 IDs 建立新 proposal，不能把 missing 当作本批已删除的证明。真正的
-all-or-nothing 跨 manifest 事务需要持久 WAL/tombstone/staging 及对应 GC-root 规则，当前
-接口没有做出该承诺。
+A batch change set is therefore not a durable job, a lease, or a resume token. When the
+response is lost but the process is still alive, a replay of the same ID retrieves the cached
+result; after a process restart or TTL expiry the old ID no longer exists, and the client must
+re-enumerate the on-disk facts and build a new proposal for the IDs that still exist — it must
+not treat missing as proof that this batch was deleted. A true all-or-nothing cross-manifest
+transaction would require a persistent WAL/tombstone/staging plus the corresponding GC-root
+rules; the current
+interface makes no such promise.
 
-## 10. 含混 prepared checkpoint 的人工裁决
+## 10. Human adjudication of ambiguous prepared checkpoints
 
-人工裁决只改变 `.tiledmcp` internal state，不扩大第 2 节对项目资产 promotion 的保证。
-接口刻意拆成 `tiled_preview_prepared_checkpoint_commit` 与
-`tiled_preview_prepared_checkpoint_abandon`；不存在可附加到其他工具的通用
-`force:true`。两者都要求客户端把当前 bounded proposal、冲突分类、永久性影响与 expiry
-展示给操作者，再用 proposal 返回的 `changeSetId` 和动作专属 `expectedRevision` 调用
-统一 apply。
+Human adjudication changes only `.tiledmcp` internal state and does not widen section 2's
+guarantees for project-asset promotion. The interface is deliberately split into
+`tiled_preview_prepared_checkpoint_commit` and
+`tiled_preview_prepared_checkpoint_abandon`; there is no generic
+`force:true` that could be attached to other tools. Both require the client to present the
+current bounded proposal, the conflict classification, the permanent effects, and the expiry
+to the operator, then call the
+unified apply with the `changeSetId` returned by the proposal and the action-specific
+`expectedRevision`.
 
-安全状态矩阵为：
+The safety state matrix is:
 
-- create target missing 和 existing target exact-before 由机器证明为 write-did-not-land，
-  只能走现有 safe discard；
-- existing target exact-after 在服务重启后由启动 reconcile 自动推进；
-- create target exact-after 才可由操作者选择 commit 或 abandon；
-- create target unrelated、existing target missing、existing target unrelated 只能
-  abandon；
-- symlink、非普通文件、越界/内部路径、超限、不可读或读取竞态全部拒绝。
+- create target missing and existing target exact-before are machine-proven as
+  write-did-not-land, and can only go through the existing safe discard;
+- existing target exact-after is advanced automatically by startup reconcile after a service
+  restart;
+- only create target exact-after may be committed or abandoned at the operator's choice;
+- create target unrelated, existing target missing, and existing target unrelated can only
+  be abandoned;
+- symlinks, non-regular files, out-of-bounds/internal paths, over-limit sizes, unreadable
+  targets, and read races are all rejected.
 
-preview 固定 manifest 的 raw SHA-256/size、version/retention 在内的完整 metadata、目标
-严格缺失或安全 nofollow regular bounded read 的 raw revision/size，以及 conflict 分类。
-commit 与 abandon 使用不同 hash domain，不能把一种批准改写成另一种。apply 按
-`target mutex → target file lock → checkpoint-store lock` 重验全部 pins；任何 manifest
-或目标漂移都在首次 mutation 前失败。该 CAS 仍是 bytes identity，不是 inode/generation
-lease；不合作写者和 ABA 边界继续受第 1、3 节约束。
+The preview pins the manifest's raw SHA-256/size, its complete metadata including
+version/retention, the target's strict absence or the raw revision/size from a safe nofollow
+regular bounded read, and the conflict classification. Commit and abandon use different hash
+domains; one kind of approval cannot be rewritten into the other. Apply re-verifies all pins
+in `target mutex → target file lock → checkpoint-store lock` order; any manifest
+or target drift fails before the first mutation. This CAS is still bytes identity, not an
+inode/generation lease; non-cooperating writers and the ABA boundary remain governed by
+sections 1 and 3.
 
-commit 仅接受 prepared create 且目标 revision 精确等于 `afterRevision`，并固定当前
-size 作为 apply CAS。它不修改
-项目文件、不删除 checkpoint object、不运行 GC，只把 manifest 原子替换为 committed；
-这个 committed manifest 只保留内部审计记录，当前 restore 不会把
-`before.existed:false` 解释为删除目标。rename 是提交点，随后 fsync checkpoint 目录。rename 后的 fsync、observer 或锁释放故障
-必须报告 `manifestCommitted:true,durability:"unconfirmed"` 的有界成功。客户端不能把
-它当作“未发生”而重放新批准。
+Commit accepts only a prepared create whose target revision exactly equals `afterRevision`,
+and pins the current size as the apply CAS. It does not modify
+project files, does not delete checkpoint objects, and does not run GC; it only atomically
+replaces the manifest with a committed one; this committed manifest keeps only an internal
+audit record, and the current restore does not interpret
+`before.existed:false` as deleting the target. The rename is the commit point, followed by a
+checkpoint-directory fsync. An fsync, observer, or lock-release failure after the rename
+must be reported as a bounded success with `manifestCommitted:true,durability:"unconfirmed"`.
+The client must not treat it as "did not happen" and replay a new approval.
 
-abandon 保留当前项目文件，却永久 unlink prepared recovery point；目录 fsync 后才运行
-fail-closed orphan GC。它不读取 stored-before object，因此该 object 缺失或损坏不阻止
-明确放弃；global inventory blocker 仍会让 GC 零删除。unlink 后任何 sync、observer、
-GC 或锁释放故障都继续报告 `manifestDeleted:true`。同一 change set 只精确重放首个缓存
-结果，不续跑；重启或 expiry 后必须重新列举。更宽来源认领、目标项目资产删除、持久授权
-和通用 force 均不在该权限模型内。
+Abandon keeps the current project file, yet permanently unlinks the prepared recovery point;
+the fail-closed orphan GC runs only after the directory fsync. It does not read the
+stored-before object, so that object being missing or corrupt does not block an explicit
+abandonment; a global inventory blocker still makes the GC delete zero entries. Any sync,
+observer, GC, or lock-release failure after the unlink still reports `manifestDeleted:true`.
+The same change set only replays the first cached result exactly, and never resumes; after a
+restart or expiry, re-enumeration is required. Claiming a broader provenance, deleting target
+project assets, persistent authorization,
+and a generic force are all outside this permission model.

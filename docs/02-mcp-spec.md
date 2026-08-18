@@ -249,7 +249,7 @@ Authoritative list, availability, and schemas: `contracts/mcp-contract.v1.json` 
 | `tiled_get_capabilities` | implementation boundaries, limits, detected CLI capabilities |
 | `tiled_list_files` | list Tiled assets in the project |
 | `tiled_get_map_summary` | revision, root metadata, layer tree, tileset asset ids |
-| `tiled_get_region` | bounded rectangular tile region; `format:"gids"` returns compact raw GID rows plus a firstgid legend |
+| `tiled_get_region` | bounded rectangular tile region; `format:"gids"` returns one RLE run string per row (`"0*12,364,0*48"`) plus a firstgid legend |
 | `tiled_get_tileset` | atlas or collection tileset details, Wang expansion |
 | `tiled_find_tiles` | search explicit class and property metadata |
 | `tiled_list_objects` | bounded object listing |
