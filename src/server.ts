@@ -246,6 +246,7 @@ import {
   MAX_DELETE_REFERRER_SAMPLE,
 } from "./maps/fileDelete.js";
 import { MAX_TRANSACTION_STAGED_BYTES } from "./storage/transactions.js";
+import { MAX_REGION_CELLS } from "./maps/mapDomain.js";
 import {
   MAX_DECODED_TILE_DATA_BYTES,
   MAX_TILE_LAYER_CHUNKS,
@@ -2880,6 +2881,9 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
             "tiled_analyze_usage",
             "tiled_render_map",
           ],
+          regionReadFormats: ["cells", "gids"],
+          regionGidsLegend:
+            "firstgid-ascending-external-asset-ids-and-embedded-source-indexes",
           arrayEncoding: "csv-or-absent",
           encodedEncoding: "base64",
           compressions: [
@@ -3127,6 +3131,8 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
           ],
           unknownRulesMapProperties:
             "rejected-not-warned",
+          emptyPlanErrorCode:
+            "PLAN_NO_CHANGES",
         },
         nativePreviewCapabilities: {
           renderProfile:
@@ -3268,7 +3274,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
             MAX_CREATE_MAP_DIMENSION,
           maxCreateMapTileEdge:
             MAX_CREATE_MAP_TILE_EDGE,
-          maxRegionCells: 20_000,
+          maxRegionCells: MAX_REGION_CELLS,
           maxChangeSetCellWrites: MAX_CELL_WRITES,
           maxAutomapRulesFiles:
             MAX_AUTOMAP_RULES_FILES,
@@ -4151,7 +4157,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
     {
       title: "Read a tile region",
       description:
-        "Returns a bounded rectangular tile region using tileset asset IDs and local tile IDs. Cells referencing an embedded (inline) tileset return a read-only {kind:\"embedded\", sourceIndex} reference instead of an asset ID. On infinite maps the rectangle uses absolute tile coordinates (negatives allowed) and cells outside every chunk are empty. XML maps (.tmx) return raw encoded GIDs (flip bits included) plus the map's tileset ranges so callers attribute cells by firstgid themselves; finite csv and base64 layers only — plain tile elements and chunks fail closed.",
+        "Returns a bounded rectangular tile region. The default format \"cells\" resolves every cell into a tileset-asset-ID + local-tile-ID object; format \"gids\" returns the same region as raw encoded GID rows (flip bits included) plus the map's firstgid legend — prefer it for anything beyond a few dozen cells, it is ~35x smaller and every GID is still validated. Cells referencing an embedded (inline) tileset return a read-only {kind:\"embedded\", sourceIndex} reference instead of an asset ID (legend entries carry the same sourceIndex). On infinite maps the rectangle uses absolute tile coordinates (negatives allowed) and cells outside every chunk are empty. XML maps (.tmx) always return raw encoded GIDs plus tileset ranges and ignore the format field; finite csv and base64 layers only — plain tile elements and chunks fail closed.",
       inputSchema: z
         .object({
           mapPath: projectPathSchema,
@@ -4160,6 +4166,12 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
           y: z.number().int(),
           width: z.number().int().positive(),
           height: z.number().int().positive(),
+          format: z
+            .enum(["cells", "gids"])
+            .optional()
+            .describe(
+              "Response encoding for TMJ maps; defaults to \"cells\". \"gids\" returns compact raw GID rows plus a firstgid legend.",
+            ),
         })
         .strict(),
       outputSchema: regionToolOutputSchema,

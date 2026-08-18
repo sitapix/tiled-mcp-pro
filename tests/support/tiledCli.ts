@@ -60,8 +60,11 @@ function probe(): string | null {
       {
         env: {
           ...process.env,
-          LANG: "C",
-          LC_ALL: "C",
+          // C.UTF-8, not C: under a non-UTF-8 locale Qt warns on stderr
+          // ("Detected locale \"C\" ... is not UTF-8"), which the strict
+          // integration preflight rejects as unexpected stderr.
+          LANG: "C.UTF-8",
+          LC_ALL: "C.UTF-8",
           ...(QT_QPA_PLATFORM === undefined
             ? {}
             : { QT_QPA_PLATFORM }),
@@ -87,7 +90,7 @@ function probe(): string | null {
 /** Environment the CLI needs to run headless and locale-stable. */
 export const TILED_CLI_ENV = {
   ...process.env,
-  LANG: "C",
-  LC_ALL: "C",
+  LANG: "C.UTF-8",
+  LC_ALL: "C.UTF-8",
   QT_QPA_PLATFORM,
 } as const;

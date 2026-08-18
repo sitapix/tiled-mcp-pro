@@ -787,7 +787,7 @@ describe("automap", () => {
         await expect(
           plan(service),
         ).rejects.toMatchObject({
-          code: "INVALID_ARGUMENT",
+          code: "PLAN_NO_CHANGES",
         });
       },
     );
@@ -1086,7 +1086,7 @@ describe("automap", () => {
         await expect(
           plan(service),
         ).rejects.toMatchObject({
-          code: "INVALID_ARGUMENT",
+          code: "PLAN_NO_CHANGES",
         });
       },
     );
@@ -1559,7 +1559,7 @@ describe("automap", () => {
         await expect(
           plan(service),
         ).rejects.toMatchObject({
-          code: "INVALID_ARGUMENT",
+          code: "PLAN_NO_CHANGES",
         });
       },
     );

@@ -254,7 +254,7 @@ describe("terrain painting via Tiled wangEdit", () => {
         ),
       ),
     ).rejects.toMatchObject({
-      code: "INVALID_ARGUMENT",
+      code: "PLAN_NO_CHANGES",
     });
     // A failing script surfaces its marker.
     await expect(

@@ -99,10 +99,10 @@ describe("stable application error registry", () => {
   });
 
   it("is sorted, unique, scoped, and self-consistent", () => {
-    expect(TILED_MCP_ERROR_CODES).toHaveLength(128);
+    expect(TILED_MCP_ERROR_CODES).toHaveLength(129);
     expect(
       TILED_MCP_APPLICATION_ERROR_CODES,
-    ).toHaveLength(106);
+    ).toHaveLength(107);
     expect(
       TILED_MCP_CAPABILITY_ISSUE_CODES,
     ).toHaveLength(13);

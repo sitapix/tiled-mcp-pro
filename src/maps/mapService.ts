@@ -3308,7 +3308,11 @@ export class MapService {
       allowIsometric: true,
       allowOblique: true,
     });
+    // "gids" keeps the identical decode-and-validate pass per cell; only the
+    // serialized shape changes.
+    const compact = input.format === "gids";
     const rows: Array<Array<TileRef | null>> = [];
+    const gidRows: number[][] = [];
     let layerDescriptor: { id: number; name: string };
     if (context.infinite) {
       const located = findChunkedTileLayer(
@@ -3333,6 +3337,7 @@ export class MapService {
       );
       for (let y = 0; y < input.height; y += 1) {
         const row: Array<TileRef | null> = [];
+        const gidRow: number[] = [];
         for (let x = 0; x < input.width; x += 1) {
           const gid = gids[y * input.width + x];
           if (
@@ -3349,16 +3354,20 @@ export class MapService {
               },
             );
           }
-          row.push(
-            gidToTileRef(
-              gid,
-              context.orientation,
-              context.bindings,
-              context.embeddedBindings,
-            ),
+          const ref = gidToTileRef(
+            gid,
+            context.orientation,
+            context.bindings,
+            context.embeddedBindings,
           );
+          if (compact) {
+            gidRow.push(gid);
+          } else {
+            row.push(ref);
+          }
         }
         rows.push(row);
+        gidRows.push(gidRow);
       }
     } else {
       const layer = findTileLayer(
@@ -3374,22 +3383,27 @@ export class MapService {
       assertRegionInsideLayer(layer, input.x, input.y, input.width, input.height);
       for (let y = input.y; y < input.y + input.height; y += 1) {
         const row: Array<TileRef | null> = [];
+        const gidRow: number[] = [];
         for (let x = input.x; x < input.x + input.width; x += 1) {
           const gid = readLayerGid(layer, x, y);
-          row.push(
-            gidToTileRef(
-              gid,
-              context.orientation,
-              context.bindings,
-              context.embeddedBindings,
-            ),
+          const ref = gidToTileRef(
+            gid,
+            context.orientation,
+            context.bindings,
+            context.embeddedBindings,
           );
+          if (compact) {
+            gidRow.push(gid);
+          } else {
+            row.push(ref);
+          }
         }
         rows.push(row);
+        gidRows.push(gidRow);
       }
     }
 
-    return {
+    const base = {
       mapPath: context.loaded.path,
       revision: context.loaded.revision,
       dependencyRevisions: context.dependencyRevisions,
@@ -3400,8 +3414,29 @@ export class MapService {
         width: input.width,
         height: input.height,
       },
-      rows,
     };
+    if (compact) {
+      return {
+        ...base,
+        cellSemantics: "raw-encoded-gids",
+        rows: gidRows,
+        tilesets: [
+          ...context.bindings.map((binding) => ({
+            firstGid: binding.firstGid,
+            source: binding.path,
+            assetId: binding.assetId,
+          })),
+          ...context.embeddedBindings.map((binding) => ({
+            firstGid: binding.firstGid,
+            embedded: true,
+            sourceIndex: binding.sourceIndex,
+            name: binding.name,
+            tileCount: binding.tileCount,
+          })),
+        ].sort((a, b) => a.firstGid - b.firstGid),
+      };
+    }
+    return { ...base, rows };
   }
 
   async listObjects(input: ListObjectsInput): Promise<Record<string, unknown>> {
@@ -10209,7 +10244,7 @@ export class MapService {
       }
       if (cells.length === 0) {
         throw new TiledMcpError(
-          "INVALID_ARGUMENT",
+          "PLAN_NO_CHANGES",
           "The terrain paint produced no cell changes; the painted corners already match the Wang set.",
           { cornerCount: input.corners.length },
         );
@@ -10308,7 +10343,7 @@ export class MapService {
     }
     if (cells.length === 0) {
       throw new TiledMcpError(
-        "INVALID_ARGUMENT",
+        "PLAN_NO_CHANGES",
         "The terrain paint produced no cell changes; the painted corners already match the Wang set.",
         { cornerCount: input.corners.length },
       );
@@ -12207,7 +12242,7 @@ export class MapService {
     }
     if (operations.length === 0) {
       throw new TiledMcpError(
-        "INVALID_ARGUMENT",
+        "PLAN_NO_CHANGES",
         "The automap produced no cell changes; the map already satisfies the rules.",
         {
           mapPath: context.loaded.path,

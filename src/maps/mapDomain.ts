@@ -493,6 +493,14 @@ export interface GetRegionInput {
   y: number;
   width: number;
   height: number;
+  /**
+   * Response encoding for TMJ maps. `"cells"` (the default) resolves every
+   * cell into a `TileRef` object; `"gids"` returns raw encoded GID rows plus
+   * a firstgid legend, roughly 35x smaller for the same data. Every observed
+   * GID is decoded and validated identically in both modes. TMX maps always
+   * answer with raw GIDs and ignore this field.
+   */
+  format?: "cells" | "gids" | undefined;
 }
 
 export interface ListObjectsInput {

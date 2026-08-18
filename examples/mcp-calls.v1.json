@@ -150,9 +150,10 @@
         "x": 0,
         "y": 0,
         "width": 8,
-        "height": 8
+        "height": 8,
+        "format": "gids"
       },
-      "purpose": "读取一个有界 tile-layer 矩形区域。"
+      "purpose": "以紧凑 raw-GID 行加 firstgid legend 读取一个有界 tile-layer 矩形区域。"
     },
     {
       "name": "tiled_render_tileset_sheet",

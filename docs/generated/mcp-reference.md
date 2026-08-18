@@ -104,7 +104,7 @@ Schema-valid calls below use fixed placeholders and must never be sent as-is. Re
 
 ## Stable TiledMCP error codes
 
-The application-error registry is committed at `contracts/application-errors.v1.json` and served from `tiled://application-errors`. Its current revision is `sha256:cad493fb51e07b0886c44ff2de763aeb9a43020f398f40733b4876d2b4ae286c`. Existing identifiers and meanings are stable; newer server versions may add identifiers, so clients must refresh discovery and handle unknown codes.
+The application-error registry is committed at `contracts/application-errors.v1.json` and served from `tiled://application-errors`. Its current revision is `sha256:a257efdac11748b90ad313f5b052709791cf1956ef070dc2e494573b3e40bcf2`. Existing identifiers and meanings are stable; newer server versions may add identifiers, so clients must refresh discovery and handle unknown codes.
 
 ```json
 {
@@ -171,6 +171,7 @@ The application-error registry is committed at `contracts/application-errors.v1.
     "PAGE_OUT_OF_RANGE",
     "PARENT_DIRECTORY_NOT_FOUND",
     "PATH_OUTSIDE_ROOT",
+    "PLAN_NO_CHANGES",
     "PREVIEW_DIMENSIONS_EXCEEDED",
     "PREVIEW_REGION_REQUIRED",
     "RASTER_TEMP_CLEANUP_FAILED",
@@ -251,9 +252,9 @@ The versioned identifiers that may appear at structuredContent.result.error.code
 {
   "_meta": {
     "registryVersion": 1,
-    "revision": "sha256:cad493fb51e07b0886c44ff2de763aeb9a43020f398f40733b4876d2b4ae286c",
+    "revision": "sha256:a257efdac11748b90ad313f5b052709791cf1956ef070dc2e494573b3e40bcf2",
     "serverVersion": "0.1.0",
-    "size": 4013
+    "size": 4036
   },
   "annotations": {
     "audience": [
@@ -265,7 +266,7 @@ The versioned identifiers that may appear at structuredContent.result.error.code
   "description": "The versioned identifiers that may appear at structuredContent.result.error.code, plus compatibility and excluded-surface rules.",
   "mimeType": "application/json",
   "name": "application-errors",
-  "size": 4013,
+  "size": 4036,
   "title": "TiledMCP Pro stable application error registry",
   "uri": "tiled://application-errors"
 }
@@ -278,9 +279,9 @@ The full per-tool reference for inspecting, previewing, approving, applying, and
 ```json
 {
   "_meta": {
-    "revision": "sha256:97b16e74043a68f0273e708e57def5c7a16f62fb1fcc17acae50a9d6d7280ba8",
+    "revision": "sha256:d9ab5dddae0c0548312557141d6045540fa3fbe154d452fb137304254e9e2b7d",
     "serverVersion": "0.1.0",
-    "size": 121794
+    "size": 123040
   },
   "annotations": {
     "audience": [
@@ -292,15 +293,15 @@ The full per-tool reference for inspecting, previewing, approving, applying, and
   "description": "The full per-tool reference for inspecting, previewing, approving, applying, and verifying safe Tiled map edits. It is large; read one section at a time via tiled://guide/{section} (the Contents block lists the slugs).",
   "mimeType": "text/markdown",
   "name": "guide",
-  "size": 121794,
+  "size": 123040,
   "title": "TiledMCP Pro safe editing guide",
   "uri": "tiled://guide"
 }
 ```
 
-Content contract: `text`, 4013 UTF-8 bytes, revision `sha256:cad493fb51e07b0886c44ff2de763aeb9a43020f398f40733b4876d2b4ae286c`.
+Content contract: `text`, 4036 UTF-8 bytes, revision `sha256:a257efdac11748b90ad313f5b052709791cf1956ef070dc2e494573b3e40bcf2`.
 
-Content contract: `text`, 121794 UTF-8 bytes, revision `sha256:97b16e74043a68f0273e708e57def5c7a16f62fb1fcc17acae50a9d6d7280ba8`.
+Content contract: `text`, 123040 UTF-8 bytes, revision `sha256:d9ab5dddae0c0548312557141d6045540fa3fbe154d452fb137304254e9e2b7d`.
 
 Prompts: none.
 
@@ -786,6 +787,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -1691,6 +1693,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -4698,6 +4701,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -5232,6 +5236,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -5745,6 +5750,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -6061,6 +6067,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -6932,6 +6939,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -7615,6 +7623,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -8242,6 +8251,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -8704,6 +8714,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -9732,6 +9743,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -9941,7 +9953,7 @@ Output schema:
                   "type": "string"
                 },
                 "revision": {
-                  "const": "sha256:cad493fb51e07b0886c44ff2de763aeb9a43020f398f40733b4876d2b4ae286c",
+                  "const": "sha256:a257efdac11748b90ad313f5b052709791cf1956ef070dc2e494573b3e40bcf2",
                   "type": "string"
                 },
                 "sdkInputErrors": {
@@ -9949,7 +9961,7 @@ Output schema:
                   "type": "string"
                 },
                 "size": {
-                  "const": 4013,
+                  "const": 4036,
                   "type": "number"
                 },
                 "wireLocation": {
@@ -10131,6 +10143,10 @@ Output schema:
                   "const": "seed-and-coordinate-hash-not-tiled-rng",
                   "type": "string"
                 },
+                "emptyPlanErrorCode": {
+                  "const": "PLAN_NO_CHANGES",
+                  "type": "string"
+                },
                 "engine": {
                   "const": "native-port-of-tiled-1.12.2-automapper",
                   "type": "string"
@@ -10184,7 +10200,8 @@ Output schema:
                 "determinism",
                 "matchTypeResolution",
                 "unsupported",
-                "unknownRulesMapProperties"
+                "unknownRulesMapProperties",
+                "emptyPlanErrorCode"
               ],
               "type": "object"
             },
@@ -15282,6 +15299,23 @@ Output schema:
                   ],
                   "type": "array"
                 },
+                "regionGidsLegend": {
+                  "const": "firstgid-ascending-external-asset-ids-and-embedded-source-indexes",
+                  "type": "string"
+                },
+                "regionReadFormats": {
+                  "items": [
+                    {
+                      "const": "cells",
+                      "type": "string"
+                    },
+                    {
+                      "const": "gids",
+                      "type": "string"
+                    }
+                  ],
+                  "type": "array"
+                },
                 "unwrittenEncodedLayers": {
                   "const": "exact-original-bytes",
                   "type": "string"
@@ -15301,6 +15335,8 @@ Output schema:
               },
               "required": [
                 "readTools",
+                "regionReadFormats",
+                "regionGidsLegend",
                 "arrayEncoding",
                 "encodedEncoding",
                 "compressions",
@@ -16640,6 +16676,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -17604,6 +17641,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -20038,6 +20076,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -20132,7 +20171,7 @@ Output schema:
 
 Availability: `core`
 
-Returns a bounded rectangular tile region using tileset asset IDs and local tile IDs. Cells referencing an embedded (inline) tileset return a read-only {kind:"embedded", sourceIndex} reference instead of an asset ID. On infinite maps the rectangle uses absolute tile coordinates (negatives allowed) and cells outside every chunk are empty. XML maps (.tmx) return raw encoded GIDs (flip bits included) plus the map's tileset ranges so callers attribute cells by firstgid themselves; finite csv and base64 layers only — plain tile elements and chunks fail closed.
+Returns a bounded rectangular tile region. The default format "cells" resolves every cell into a tileset-asset-ID + local-tile-ID object; format "gids" returns the same region as raw encoded GID rows (flip bits included) plus the map's firstgid legend — prefer it for anything beyond a few dozen cells, it is ~35x smaller and every GID is still validated. Cells referencing an embedded (inline) tileset return a read-only {kind:"embedded", sourceIndex} reference instead of an asset ID (legend entries carry the same sourceIndex). On infinite maps the rectangle uses absolute tile coordinates (negatives allowed) and cells outside every chunk are empty. XML maps (.tmx) always return raw encoded GIDs plus tileset ranges and ignore the format field; finite csv and base64 layers only — plain tile elements and chunks fail closed.
 
 Annotations:
 
@@ -20146,11 +20185,12 @@ Annotations:
 }
 ```
 
-Example purpose: 读取一个有界 tile-layer 矩形区域。
+Example purpose: 以紧凑 raw-GID 行加 firstgid legend 读取一个有界 tile-layer 矩形区域。
 
 ```json
 {
   "arguments": {
+    "format": "gids",
     "height": 8,
     "layerId": 1,
     "mapPath": "maps/example.tmj",
@@ -20169,6 +20209,14 @@ Input schema:
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "properties": {
+    "format": {
+      "description": "Response encoding for TMJ maps; defaults to \"cells\". \"gids\" returns compact raw GID rows plus a firstgid legend.",
+      "enum": [
+        "cells",
+        "gids"
+      ],
+      "type": "string"
+    },
     "height": {
       "exclusiveMinimum": 0,
       "maximum": 9007199254740991,
@@ -20451,6 +20499,175 @@ Output schema:
                   "const": "raw-encoded-gids",
                   "type": "string"
                 },
+                "dependencyRevisions": {
+                  "additionalProperties": {
+                    "pattern": "^sha256:[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "propertyNames": {
+                    "pattern": "^asset_[0-9a-f]{24}$",
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "layer": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "mapPath": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "region": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "height": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "width": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "x": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    "y": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y",
+                    "width",
+                    "height"
+                  ],
+                  "type": "object"
+                },
+                "revision": {
+                  "pattern": "^sha256:[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "rows": {
+                  "items": {
+                    "items": {
+                      "maximum": 4294967295,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "maxItems": 20000,
+                    "type": "array"
+                  },
+                  "maxItems": 20000,
+                  "type": "array"
+                },
+                "tilesets": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "assetId": {
+                            "pattern": "^asset_[0-9a-f]{24}$",
+                            "type": "string"
+                          },
+                          "firstGid": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "source": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "firstGid",
+                          "source",
+                          "assetId"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "embedded": {
+                            "const": true,
+                            "type": "boolean"
+                          },
+                          "firstGid": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "sourceIndex": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "tileCount": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "firstGid",
+                          "embedded",
+                          "sourceIndex",
+                          "name",
+                          "tileCount"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "maxItems": 4096,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "mapPath",
+                "revision",
+                "dependencyRevisions",
+                "layer",
+                "region",
+                "cellSemantics",
+                "rows",
+                "tilesets"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "cellSemantics": {
+                  "const": "raw-encoded-gids",
+                  "type": "string"
+                },
                 "format": {
                   "const": "tmx",
                   "type": "string"
@@ -20674,6 +20891,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -25512,6 +25730,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -26074,6 +26293,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -26351,6 +26571,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -26778,6 +26999,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -27123,6 +27345,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -27432,6 +27655,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -27987,6 +28211,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -28563,6 +28788,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -29351,6 +29577,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -29853,6 +30080,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -37426,6 +37654,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -37939,6 +38168,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -38792,6 +39022,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -39549,6 +39780,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -40136,6 +40368,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -41991,6 +42224,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -43552,6 +43786,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -44237,6 +44472,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -45005,6 +45241,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -45831,6 +46068,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -46329,6 +46567,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -46959,6 +47198,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -47452,6 +47692,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -47902,6 +48143,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -48464,6 +48706,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -49185,6 +49428,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -49679,6 +49923,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -50195,6 +50440,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -50588,6 +50834,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -52956,6 +53203,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -53882,6 +54130,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -54773,6 +55022,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -55446,6 +55696,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -56305,6 +56556,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -57997,6 +58249,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -58898,6 +59151,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -59728,6 +59982,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
@@ -60043,6 +60298,7 @@ Output schema:
                     "PAGE_OUT_OF_RANGE",
                     "PARENT_DIRECTORY_NOT_FOUND",
                     "PATH_OUTSIDE_ROOT",
+                    "PLAN_NO_CHANGES",
                     "PREVIEW_DIMENSIONS_EXCEEDED",
                     "PREVIEW_REGION_REQUIRED",
                     "RASTER_TEMP_CLEANUP_FAILED",
