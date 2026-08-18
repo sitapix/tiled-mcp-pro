@@ -1,6 +1,6 @@
 import { TiledMcpError } from "../errors.js";
 
-export const MAX_SHAPE_CELLS = 10_000;
+const MAX_SHAPE_CELLS = 10_000;
 
 export type ShapeDrawInput =
   | {

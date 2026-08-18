@@ -1,9 +1,9 @@
 import { TiledMcpError } from "../errors.js";
 import type { XmlElement } from "../formats/xml.js";
 
-export const MAX_TMX_LAYER_SUMMARIES = 10_000;
-export const MAX_TMX_TILESET_ENTRIES = 4_096;
-export const TMX_READ_PROFILE =
+const MAX_TMX_LAYER_SUMMARIES = 10_000;
+const MAX_TMX_TILESET_ENTRIES = 4_096;
+const TMX_READ_PROFILE =
   "tmx-read-only-summary-v1";
 
 const LAYER_ELEMENT_TYPES: Record<

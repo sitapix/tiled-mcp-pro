@@ -239,7 +239,7 @@ export interface CheckpointPruneInspection {
   checkpoint: CheckpointPruneExpectation;
 }
 
-export type CheckpointPruneGarbageCollection =
+type CheckpointPruneGarbageCollection =
   CheckpointPruneGarbageCollectionResult;
 
 export interface CheckpointPruneResult {
@@ -380,7 +380,7 @@ export interface ReconcilePreparedCheckpointsOptions {
   scanLimit?: number;
 }
 
-export type CheckpointReconciliationOutcomeKind =
+type CheckpointReconciliationOutcomeKind =
   | "reconciled"
   | "writeDidNotLand"
   | "conflict"

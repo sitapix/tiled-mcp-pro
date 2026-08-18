@@ -27,20 +27,17 @@ const COMMIT_PLAN_HASH_DOMAIN =
 const ABANDON_PLAN_HASH_DOMAIN =
   "tiledmcp/prepared-checkpoint-abandon-plan/v1\0";
 
-export const PREPARED_CHECKPOINT_COMMIT_WARNING =
+const PREPARED_CHECKPOINT_COMMIT_WARNING =
   "Operator decision required: the create target currently has the checkpoint after revision, but automatic recovery cannot prove which writer created it. Applying this change commits only the internal audit checkpoint record, which still cannot restore target absence. It does not modify the project asset or run garbage collection.";
 
-export const PREPARED_CHECKPOINT_ABANDON_WARNING =
+const PREPARED_CHECKPOINT_ABANDON_WARNING =
   "Operator decision required: applying this change permanently deletes the ambiguous prepared recovery point while leaving the current project asset unchanged. The deleted recovery point cannot be restored through TiledMCP Pro; fail-closed garbage collection may delete only storage no longer referenced by another valid checkpoint.";
 
-export const PREPARED_CHECKPOINT_COMMIT_GARBAGE_COLLECTION =
+const PREPARED_CHECKPOINT_COMMIT_GARBAGE_COLLECTION =
   "not-run" as const;
 
-export const PREPARED_CHECKPOINT_ABANDON_GARBAGE_COLLECTION =
+const PREPARED_CHECKPOINT_ABANDON_GARBAGE_COLLECTION =
   "fail-closed-after-prepared-manifest-abandon" as const;
-
-export type PreparedCheckpointAdjudicationConflict =
-  PreparedCheckpointAdjudicationExpectation["conflict"];
 
 export interface PreparedCheckpointCommitSummary {
   operationCount: 1;
@@ -281,7 +278,7 @@ export function preparedCheckpointCommitEvidenceRevision(
   );
 }
 
-export function preparedCheckpointAbandonEvidenceRevision(
+function preparedCheckpointAbandonEvidenceRevision(
   checkpoint: PreparedCheckpointAdjudicationExpectation,
 ): string {
   return evidenceRevision(

@@ -1875,7 +1875,7 @@ export const TILED_MCP_OPTIONAL_TOOL_NAMES =
     "tiled_preview_export",
   ] as const);
 /** Every tool name this server may advertise, core or CLI-gated. */
-export type AdvertisedToolName =
+type AdvertisedToolName =
   | (typeof TILED_MCP_CORE_TOOL_NAMES)[number]
   | (typeof TILED_MCP_OPTIONAL_TOOL_NAMES)[number];
 
@@ -2882,6 +2882,8 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
             "tiled_render_map",
           ],
           regionReadFormats: ["cells", "gids"],
+          regionGidsRowEncoding:
+            "comma-separated-rle-runs-gid-or-gid-star-count",
           regionGidsLegend:
             "firstgid-ascending-external-asset-ids-and-embedded-source-indexes",
           arrayEncoding: "csv-or-absent",
@@ -4157,7 +4159,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
     {
       title: "Read a tile region",
       description:
-        "Returns a bounded rectangular tile region. The default format \"cells\" resolves every cell into a tileset-asset-ID + local-tile-ID object; format \"gids\" returns the same region as raw encoded GID rows (flip bits included) plus the map's firstgid legend — prefer it for anything beyond a few dozen cells, it is ~35x smaller and every GID is still validated. Cells referencing an embedded (inline) tileset return a read-only {kind:\"embedded\", sourceIndex} reference instead of an asset ID (legend entries carry the same sourceIndex). On infinite maps the rectangle uses absolute tile coordinates (negatives allowed) and cells outside every chunk are empty. XML maps (.tmx) always return raw encoded GIDs plus tileset ranges and ignore the format field; finite csv and base64 layers only — plain tile elements and chunks fail closed.",
+        "Returns a bounded rectangular tile region. The default format \"cells\" resolves every cell into a tileset-asset-ID + local-tile-ID object; format \"gids\" returns the same region as one RLE string per row — comma-separated runs of raw encoded GIDs (flip bits included), \"<gid>\" for one cell and \"<gid>*<count>\" for repeats, e.g. \"0*12,364,0*48\" — plus the map's firstgid legend. Prefer it for anything beyond a few dozen cells; every GID is still validated. Cells referencing an embedded (inline) tileset return a read-only {kind:\"embedded\", sourceIndex} reference instead of an asset ID (legend entries carry the same sourceIndex). On infinite maps the rectangle uses absolute tile coordinates (negatives allowed) and cells outside every chunk are empty. XML maps (.tmx) always return the RLE GID shape plus tileset ranges and ignore the format field; finite csv and base64 layers only — plain tile elements and chunks fail closed.",
       inputSchema: z
         .object({
           mapPath: projectPathSchema,
@@ -4170,7 +4172,7 @@ export async function wireTiledMcpServerFromCapabilitySnapshot(
             .enum(["cells", "gids"])
             .optional()
             .describe(
-              "Response encoding for TMJ maps; defaults to \"cells\". \"gids\" returns compact raw GID rows plus a firstgid legend.",
+              "Response encoding for TMJ maps; defaults to \"cells\". \"gids\" returns RLE-run rows of raw encoded GIDs plus a firstgid legend.",
             ),
         })
         .strict(),

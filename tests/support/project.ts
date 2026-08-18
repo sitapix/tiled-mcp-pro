@@ -134,7 +134,7 @@ export async function wireProject(
 }
 
 /** A fresh temp directory for a project, named for the suite that owns it. */
-export async function makeProjectRoot(
+async function makeProjectRoot(
   prefix = "tiledmcp-test",
 ): Promise<string> {
   return mkdtemp(join(tmpdir(), `${prefix}-`));

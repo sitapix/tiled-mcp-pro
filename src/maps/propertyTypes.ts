@@ -7,11 +7,11 @@ import {
   type JsonValue,
 } from "../formats/json.js";
 
-export const MAX_PROPERTY_TYPES = 1_000;
-export const MAX_PROPERTY_TYPE_OPERATIONS = 16;
-export const MAX_CLASS_MEMBERS = 256;
-export const MAX_ENUM_VALUES = 256;
-export const MAX_PROPERTY_TYPE_NAME_CODE_POINTS = 256;
+const MAX_PROPERTY_TYPES = 1_000;
+const MAX_PROPERTY_TYPE_OPERATIONS = 16;
+const MAX_CLASS_MEMBERS = 256;
+const MAX_ENUM_VALUES = 256;
+const MAX_PROPERTY_TYPE_NAME_CODE_POINTS = 256;
 
 const PROPERTY_TYPE_EDIT_PLAN_HASH_DOMAIN =
   "tiledmcp/property-type-edit-plan/v1\0";
@@ -38,7 +38,7 @@ const MEMBER_TYPES = [
   "object",
 ] as const;
 
-export interface ClassMemberDefinition {
+interface ClassMemberDefinition {
   name: string;
   type: (typeof MEMBER_TYPES)[number];
   value: JsonValue;

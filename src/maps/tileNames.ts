@@ -10,9 +10,9 @@ import {
 
 export const TILE_NAMES_FILE =
   "tile-names.json";
-export const MAX_TILE_NAMES = 4_096;
+const MAX_TILE_NAMES = 4_096;
 export const MAX_TILE_NAMES_BYTES = 1024 * 1024;
-export const TILE_NAME_PATTERN =
+const TILE_NAME_PATTERN =
   /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 
 export interface TileNameEntry {

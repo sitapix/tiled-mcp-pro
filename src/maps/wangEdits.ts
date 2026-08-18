@@ -16,7 +16,7 @@ export const MAX_WANG_EDIT_OPERATIONS = 32;
 export const MAX_WANG_ASSIGNMENTS_PER_OPERATION = 64;
 export const MAX_WANG_NAME_CODE_POINTS = 1_024;
 export const MAX_WANG_SETS_PER_TILESET = 100;
-export const MAX_WANG_TILES_PER_SET_WRITE = 10_000;
+const MAX_WANG_TILES_PER_SET_WRITE = 10_000;
 
 const WANG_EDIT_PLAN_HASH_DOMAIN =
   "tiledmcp/wang-edit-plan/v1\0";
@@ -28,7 +28,7 @@ const WANG_SET_TYPES = [
   "mixed",
 ] as const;
 
-export interface WangColorInput {
+interface WangColorInput {
   name: string;
   /** #rrggbb or #aarrggbb, serialized verbatim. */
   color: string;

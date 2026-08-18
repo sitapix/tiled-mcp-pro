@@ -1,42 +1,49 @@
-# 无限地图编辑设计（M2）
+# Infinite Map Editing Design (M2)
 
-状态：**已实施**（S1 核心 + S2 接线 + S3 契约；tests/chunkedCellView.test.ts 与 tests/infiniteMapRead.test.ts 覆盖）。对应已批准工作项"无限地图编辑（chunk 保持写回）"。
-语义全部对照 Tiled 1.12.2 源码
-（src/libtiled/tilelayer.{h,cpp}、maptovariantconverter.cpp）考证。
+Status: **implemented** (S1 core + S2 wiring + S3 contract; covered by
+tests/chunkedCellView.test.ts and tests/infiniteMapRead.test.ts). Corresponds to the
+approved work item "infinite map editing (chunk-preserving write-back)".
+All semantics are verified against the Tiled 1.12.2 source
+(src/libtiled/tilelayer.{h,cpp}, maptovariantconverter.cpp).
 
-## 1. Tiled 1.12.2 的 chunk 语义（源码结论）
+## 1. Chunk semantics in Tiled 1.12.2 (source-code findings)
 
-- 内存 chunk 是 16×16（`CHUNK_SIZE`）网格；`setCell` 用位运算
-  `x >> CHUNK_BITS` 定位 chunk，负坐标 floor 对齐。
-- **保存时重分桶**：`sortedChunksToWrite(chunkSize)` 按
-  `map.chunkSize()`（`editorsettings.chunksize`，缺省 16×16）把全部非空
-  cell 重新分桶为对齐 rect，**空 chunk 一律不写出**；负坐标经 modulo 修正
-  实现 floor 对齐；结果按 `compareRectPos` 排序（y 优先、再 x）。
-- 层级 `width/height/startx/starty` 写自 `localBounds()`——按 chunk 对齐
-  rect 的并集维护（只增不减；新鲜 load→save 等于非空 chunk rect 并集）。
-- 读取器接受任意 chunk rect（不要求对齐），因此"保持原 chunk 边界"不是
-  Tiled 自身的行为：**Tiled 每次保存都会规范化 chunk 结构**。
+- In-memory chunks are a 16×16 (`CHUNK_SIZE`) grid; `setCell` locates the chunk with
+  the bit operation `x >> CHUNK_BITS`, floor-aligned for negative coordinates.
+- **Rebucketing on save**: `sortedChunksToWrite(chunkSize)` rebuckets all non-empty
+  cells into aligned rects per `map.chunkSize()` (`editorsettings.chunksize`, default
+  16×16); **empty chunks are never written out**; negative coordinates achieve floor
+  alignment via a modulo correction; the result is sorted by `compareRectPos`
+  (y first, then x).
+- The layer-level `width/height/startx/starty` are written from `localBounds()` —
+  maintained as the union of chunk-aligned rects (grow-only, never shrinking; a fresh
+  load→save equals the union of the non-empty chunk rects).
+- The reader accepts arbitrary chunk rects (alignment is not required), so
+  "preserving the original chunk boundaries" is not a behavior of Tiled itself:
+  **Tiled normalizes the chunk structure on every save**.
 
-## 2. 决策
+## 2. Decisions
 
-| # | 决策 | 结论 |
+| # | Decision | Conclusion |
 |---|---|---|
-| D1 | 被写 chunked layer 的序列化 | **规范化写回**（与 Tiled load→save 逐语义一致）：全部非空 cell 按 `editorsettings.chunksize`（缺省 16×16）floor 对齐重分桶、丢空 chunk、(y,x) 排序、`startx/starty/width/height` 重算为非空 chunk rect 并集。逐格 cell 语义不变；未被写 layer 依旧逐字节保留。M2 路线图早先的"原 chunk 边界保持"措辞按源码证据修正为本决策并披露 |
-| D2 | V1 操作面 | chunked tile layer 允许 `setTiles` 与 `stampPattern`（显式 cell 集合，天然有界）；`floodFill`/`copyRegion`/`replaceTiles`/`resizeMap` 对 chunked layer 继续 fail closed（后续另行放行）；对象/图层成员/地图根属性操作与 tile data 无关，经逐操作审计后放行 |
-| D3 | 写入既有 chunk 外 | 重分桶自然覆盖：新 cell 落入对齐新 chunk，无需独立分配协议 |
-| D4 | 编码 chunk | 沿用层级 `encoding`/`compression` 逐 chunk 重编码，绝不转码；净 no-op 写入恢复原始字节（与有限 encoded layer 先例一致） |
-| D5 | 预算 | 沿用既有：≤4,096 chunk/层、chunk 重叠 fail closed、cellWrites 100,000 上限、读取解码预算不变；重分桶后 chunk 数超限 fail closed |
+| D1 | Serialization of a written chunked layer | **Normalized write-back** (semantic-for-semantic with a Tiled load→save): all non-empty cells are rebucketed with floor alignment per `editorsettings.chunksize` (default 16×16), empty chunks are dropped, chunks are sorted (y,x), and `startx/starty/width/height` are recomputed as the union of the non-empty chunk rects. Per-cell semantics are unchanged; layers that are not written remain preserved byte for byte. The M2 roadmap's earlier "preserve original chunk boundaries" wording is corrected to this decision per the source evidence, and the correction is disclosed |
+| D2 | V1 operation surface | Chunked tile layers allow `setTiles` and `stampPattern` (explicit cell sets, inherently bounded); `floodFill`/`copyRegion`/`replaceTiles`/`resizeMap` continue to fail closed for chunked layers (to be enabled separately later); object, layer-member, and map-root property operations do not touch tile data and are enabled after a per-operation audit |
+| D3 | Writing outside existing chunks | Rebucketing covers this naturally: new cells land in aligned new chunks; no separate allocation protocol is needed |
+| D4 | Encoded chunks | Re-encode chunk by chunk using the layer-level `encoding`/`compression`, never transcoding; a net no-op write restores the original bytes (consistent with the finite encoded-layer precedent) |
+| D5 | Budgets | Existing budgets carry over: ≤4,096 chunks per layer, overlapping chunks fail closed, a 100,000 cellWrites cap, read-side decode budgets unchanged; a chunk count over the limit after rebucketing fails closed |
 
-## 3. 实施切片
+## 3. Implementation slices
 
-1. **S1 核心**（tileData.ts 纯函数 + 测试）：`createChunkedCellView`
-   （逐 chunk 解码 → 稀疏 `Map<"x,y", gid>` + 读写接口 + 脏标记）与
-   `serializeChunkedCells`（重分桶 → 排序 → 逐 chunk 编码 → bounds），
-   往返测试含负坐标、非对齐输入 chunk、encoded chunk、净 no-op。
-2. **S2 接线**：`planEdits` 对 infinite 开 `allowInfinite`，
-   `validateAndSummarizeOperations` 按 D2 逐操作 gate；受影响 chunked
-   layer 的 source patch 替换 `chunks` 与 bounds 四成员；summary 计数
-   （cellWrites/nonEmpty）基于稀疏视图。
-3. **S3 契约**：capabilities（`tileDataReadCapabilities.infiniteMaps`
-   与新 `chunkedWriteProfile` 字符串）、guide/README/spec/architecture、
-   既有"infinite 绝不可编辑"测试语义翻转、双门禁。
+1. **S1 core** (tileData.ts pure functions + tests): `createChunkedCellView`
+   (per-chunk decode → sparse `Map<"x,y", gid>` + read/write interface + dirty flag)
+   and `serializeChunkedCells` (rebucket → sort → per-chunk encode → bounds),
+   with round-trip tests covering negative coordinates, non-aligned input chunks,
+   encoded chunks, and net no-ops.
+2. **S2 wiring**: `planEdits` enables `allowInfinite` for infinite maps,
+   `validateAndSummarizeOperations` gates per operation per D2; the source patch for
+   an affected chunked layer replaces `chunks` and the four bounds members; summary
+   counts (cellWrites/nonEmpty) are based on the sparse view.
+3. **S3 contract**: capabilities (`tileDataReadCapabilities.infiniteMaps` and the
+   new `chunkedWriteProfile` string), guide/README/spec/architecture, flipping the
+   semantics of the existing "infinite is never editable" tests, both verification
+   gates.

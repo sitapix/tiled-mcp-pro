@@ -13,8 +13,8 @@ import {
 } from "./tileData.js";
 
 export const MAX_PREVIEW_REGION_CELLS = 20_000;
-export const MAX_PREVIEW_BASE_OBJECTS = 512;
-export const MAX_PREVIEW_OBJECT_SHAPE_POINTS = 256;
+const MAX_PREVIEW_BASE_OBJECTS = 512;
+const MAX_PREVIEW_OBJECT_SHAPE_POINTS = 256;
 export const MAX_PREVIEW_LAYERS = 128;
 export const MAX_PREVIEW_TILE_DRAWS = 250_000;
 export const MAX_PREVIEW_ATLASES = 64;
@@ -114,7 +114,7 @@ export interface PreviewObjectLayer {
   textBoxCount: number;
 }
 
-export interface OmittedPreviewLayer {
+interface OmittedPreviewLayer {
   id: number;
   name: string;
   type: string;

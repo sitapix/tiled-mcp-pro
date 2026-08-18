@@ -2408,11 +2408,11 @@ describe("MapService", () => {
       },
       layer: { id: LAYER_ID, name: "Ground" },
       region: { x: 0, y: 0, width: 4, height: 3 },
-      cellSemantics: "raw-encoded-gids",
+      cellSemantics: "rle-encoded-gids",
       rows: [
-        [0, 1, FLAGGED_LOCAL_ID_TWO, 0],
-        [4, 0, 0, 0],
-        [0, 0, 0, 4],
+        `0,1,${FLAGGED_LOCAL_ID_TWO},0`,
+        "4,0*3",
+        "0*3,4",
       ],
       tilesets: [
         { firstGid: 1, source: TILESET_PATH, assetId },

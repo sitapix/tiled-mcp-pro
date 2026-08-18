@@ -43,7 +43,7 @@ export const TEXT_OBJECT_FIELDS = [
   "wrap",
 ] as const;
 
-export type TextObjectField =
+type TextObjectField =
   (typeof TEXT_OBJECT_FIELDS)[number];
 export type TextObjectHorizontalAlignment =
   (typeof TEXT_OBJECT_HORIZONTAL_ALIGNMENTS)[number];
@@ -142,7 +142,7 @@ export function measureTextObjectPayloadBytes(
   return Buffer.byteLength(JSON.stringify(projected), "utf8");
 }
 
-export function assertTextObjectFields(
+function assertTextObjectFields(
   value: Readonly<Record<string, unknown>>,
   options: { requireText?: boolean } = {},
 ): void {

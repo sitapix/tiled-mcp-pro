@@ -74,7 +74,7 @@ export interface TiledExportFormats {
   tileset: string[];
 }
 
-export interface CapabilityProbeIssue {
+interface CapabilityProbeIssue {
   code: TiledMcpCapabilityIssueCode;
   message: string;
 }

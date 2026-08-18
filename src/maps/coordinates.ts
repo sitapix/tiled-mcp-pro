@@ -33,16 +33,10 @@ export const MAX_COORDINATE_CONVERSIONS = 256;
 export const MAX_COORDINATE_MAGNITUDE = 1_000_000_000;
 
 /** Tiled's three coordinate spaces. */
-export type CoordinateSpace =
+type CoordinateSpace =
   | "tile"
   | "screen"
   | "pixel";
-
-export const COORDINATE_SPACES = [
-  "tile",
-  "screen",
-  "pixel",
-] as const satisfies readonly CoordinateSpace[];
 
 export type ProjectionOrientation =
   | "orthogonal"

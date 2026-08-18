@@ -236,7 +236,7 @@ interface ChangeSetPreviewCommon {
   expiresAt: string;
 }
 
-export interface MapEditChangeSetPreview
+interface MapEditChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "mapEdit";
   mapPath: string;
@@ -245,7 +245,7 @@ export interface MapEditChangeSetPreview
   summary: MapEditPlan["summary"];
 }
 
-export interface TilesetEditChangeSetPreview
+interface TilesetEditChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "tilesetEdit";
   mapPath: string;
@@ -255,7 +255,7 @@ export interface TilesetEditChangeSetPreview
   summary: TilesetEditPlan["summary"];
 }
 
-export interface TilesetPropertyEditChangeSetPreview
+interface TilesetPropertyEditChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "tilesetPropertyEdit";
   mapPath: string;
@@ -265,7 +265,7 @@ export interface TilesetPropertyEditChangeSetPreview
   summary: TilesetPropertyEditPlan["summary"];
 }
 
-export interface TilesetCreateChangeSetPreview
+interface TilesetCreateChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "tilesetCreate";
   tilesetPath: string;
@@ -273,21 +273,21 @@ export interface TilesetCreateChangeSetPreview
   summary: TilesetCreatePlan["summary"];
 }
 
-export interface FileDeleteChangeSetPreview
+interface FileDeleteChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "fileDelete";
   targetPath: string;
   summary: FileDeletePlan["summary"];
 }
 
-export interface WorldEditChangeSetPreview
+interface WorldEditChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "worldEdit";
   worldPath: string;
   summary: WorldEditPlan["summary"];
 }
 
-export interface WangEditChangeSetPreview
+interface WangEditChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "wangEdit";
   mapPath: string;
@@ -297,7 +297,7 @@ export interface WangEditChangeSetPreview
   summary: WangEditPlan["summary"];
 }
 
-export interface FileExportChangeSetPreview
+interface FileExportChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "fileExport";
   sourcePath: string;
@@ -306,7 +306,7 @@ export interface FileExportChangeSetPreview
   summary: FileExportPlan["summary"];
 }
 
-export interface EmbeddedTilesetEditChangeSetPreview
+interface EmbeddedTilesetEditChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "embeddedTilesetEdit";
   mapPath: string;
@@ -314,14 +314,14 @@ export interface EmbeddedTilesetEditChangeSetPreview
   summary: EmbeddedTilesetEditPlan["summary"];
 }
 
-export interface PropertyTypeEditChangeSetPreview
+interface PropertyTypeEditChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "propertyTypeEdit";
   projectFilePath: string;
   summary: PropertyTypeEditPlan["summary"];
 }
 
-export interface TileNameEditChangeSetPreview
+interface TileNameEditChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "tileNameEdit";
   registryRevision: Revision | null;
@@ -333,10 +333,10 @@ export const MAX_TRANSACTION_MEMBERS = 16;
 export const MAX_PENDING_TRANSACTIONS = 4;
 const TRANSACTION_PLAN_HASH_DOMAIN =
   "tiledmcp/transaction-plan/v1\0";
-export const TRANSACTION_WARNING =
+const TRANSACTION_WARNING =
   "This atomically commits every member change set through a crash-recoverable journal: either all targets land or none do. Members are locked against individual apply while the transaction is pending.";
 
-export type TransactionMemberPlanKind =
+type TransactionMemberPlanKind =
   | "mapEdit"
   | "tilesetEdit"
   | "wangEdit"
@@ -371,7 +371,7 @@ export interface TransactionPlan {
   };
 }
 
-export interface TransactionChangeSetPreview
+interface TransactionChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "transaction";
   summary: TransactionPlan["summary"];
@@ -594,7 +594,7 @@ function assertTransactionMemberCoupling(
   }
 }
 
-export interface CheckpointRestoreChangeSetPreview
+interface CheckpointRestoreChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "checkpointRestore";
   targetPath: string;
@@ -614,7 +614,7 @@ export interface CheckpointRestoreChangeSetPreview
   summary: CheckpointRestoreSummary;
 }
 
-export interface CheckpointPruneBatchChangeSetPreview
+interface CheckpointPruneBatchChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "checkpointPruneBatch";
   targetPaths: string[];
@@ -650,7 +650,7 @@ export interface CheckpointPruneBatchChangeSetPreview
   summary: CheckpointPruneBatchSummary;
 }
 
-export interface PreparedCheckpointDiscardChangeSetPreview
+interface PreparedCheckpointDiscardChangeSetPreview
   extends ChangeSetPreviewCommon {
   kind: "preparedCheckpointDiscard";
   targetPath: string;
@@ -733,7 +733,7 @@ interface PreparedCheckpointAdjudicationPreviewEvidence {
     | "existing-target-unrelated";
 }
 
-export interface PreparedCheckpointCommitChangeSetPreview
+interface PreparedCheckpointCommitChangeSetPreview
   extends ChangeSetPreviewCommon,
     PreparedCheckpointAdjudicationPreviewEvidence {
   kind: "preparedCheckpointCommit";
@@ -743,7 +743,7 @@ export interface PreparedCheckpointCommitChangeSetPreview
   summary: PreparedCheckpointCommitSummary;
 }
 
-export interface PreparedCheckpointAbandonChangeSetPreview
+interface PreparedCheckpointAbandonChangeSetPreview
   extends ChangeSetPreviewCommon,
     PreparedCheckpointAdjudicationPreviewEvidence {
   kind: "preparedCheckpointAbandon";

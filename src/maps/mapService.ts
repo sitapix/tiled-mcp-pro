@@ -394,6 +394,7 @@ import {
   collectSceneCollectionIds,
   collectionProfileOf,
   describeEditableObject,
+  encodeGidRowRle,
   errorDiagnostic,
   findChunkedTileLayer,
   findObjectLayer,
@@ -956,8 +957,8 @@ export class MapService {
         width: input.width,
         height: input.height,
       },
-      cellSemantics: "raw-encoded-gids",
-      rows,
+      cellSemantics: "rle-encoded-gids",
+      rows: rows.map(encodeGidRowRle),
       tilesets: summary.tilesets,
       snapshotConsistency:
         "non-atomic-read-set",
@@ -3309,7 +3310,7 @@ export class MapService {
       allowOblique: true,
     });
     // "gids" keeps the identical decode-and-validate pass per cell; only the
-    // serialized shape changes.
+    // serialized shape changes (RLE run strings, one per row).
     const compact = input.format === "gids";
     const rows: Array<Array<TileRef | null>> = [];
     const gidRows: number[][] = [];
@@ -3418,8 +3419,8 @@ export class MapService {
     if (compact) {
       return {
         ...base,
-        cellSemantics: "raw-encoded-gids",
-        rows: gidRows,
+        cellSemantics: "rle-encoded-gids",
+        rows: gidRows.map(encodeGidRowRle),
         tilesets: [
           ...context.bindings.map((binding) => ({
             firstGid: binding.firstGid,

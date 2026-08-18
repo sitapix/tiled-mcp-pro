@@ -1,7 +1,7 @@
 import { TiledMcpError } from "../errors.js";
 
-export const MAX_CONNECTIVITY_CELLS = 1_000_000;
-export const MAX_CONNECTIVITY_COMPONENT_SAMPLES = 32;
+const MAX_CONNECTIVITY_CELLS = 1_000_000;
+const MAX_CONNECTIVITY_COMPONENT_SAMPLES = 32;
 export const MAX_PASSABLE_TILE_SELECTORS = 64;
 
 export interface ConnectivityResult {

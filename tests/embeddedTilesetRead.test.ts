@@ -123,11 +123,11 @@ describe("embedded tileset reading", () => {
       format: "gids",
     });
     expect(region.cellSemantics).toBe(
-      "raw-encoded-gids",
+      "rle-encoded-gids",
     );
     expect(region.rows).toEqual([
-      [1, 5],
-      [8, 0],
+      "1,5",
+      "8,0",
     ]);
     expect(region.tilesets).toEqual([
       expect.objectContaining({

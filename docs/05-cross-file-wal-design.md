@@ -1,136 +1,168 @@
-# 跨文件 WAL 事务设计（M2）
+# Cross-File WAL Transaction Design (M2)
 
-状态：**S1（存储核心）、S2（wire 层）、S3（create+attach 耦合放行）与
-S4A（pre-state 一致 pin 耦合放行）已实施**；第 6 节决策点 D1–D5 全部按推荐通
-过。S4A 的实施结论：所有成员都对同一 pre-state 验证并原子提交，成员对另一成
-员目标的 pin 只要等于该成员自己的 base revision（即共享 pre-state）就是安全
-的——任意串行顺序在 pre-state 上应用都得到提交结果，因此不需要"计划 pin 改
-写"，preview 校验从"禁止耦合"收窄为"pin 与成员 pre-state 不一致才拒绝"。
-S4B（同文件多计划合并）**维持排除**：`tiled_preview_edits` 单计划已承载同文
-件多操作批量，链式 prospective pin 的复杂度没有对应价值。实现入口：
-`DocumentStore.commitTransaction` / `recoverTransactions`
-（src/storage/documentStore.ts、src/storage/transactions.ts）与
+Status: **S1 (storage core), S2 (wire layer), S3 (create+attach coupling admission), and
+S4A (pre-state-consistent pin coupling admission) are implemented**; decision points D1–D5
+in section 6 all passed as recommended. The S4A implementation finding: all members are
+validated against, and atomically committed from, the same pre-state, so a member's pin on
+another member's target is safe as long as it equals that member's own base revision (i.e.
+the shared pre-state) — applying the members in any serial order over the pre-state yields
+the committed result, so "plan pin rewriting" is not needed, and the preview check narrows
+from "forbid coupling" to "reject only when a pin disagrees with the member's pre-state".
+S4B (merging multiple plans on the same file) **remains excluded**: a single
+`tiled_preview_edits` plan already carries multi-operation batches on one file, and the
+complexity of chained prospective pins has no corresponding value. Implementation entry
+points: `DocumentStore.commitTransaction` / `recoverTransactions`
+(src/storage/documentStore.ts, src/storage/transactions.ts) and
 `ChangeSetRegistry.previewTransaction` + `MapService.applyTransaction`
-（src/changeSets.ts、src/maps/mapService.ts）；测试为
-tests/transactions.test.ts（逐步骤崩溃注入）、tests/transactionWire.test.ts
-与 tests/transactionCreateAttach.test.ts。
+(src/changeSets.ts, src/maps/mapService.ts); tests are
+tests/transactions.test.ts (step-by-step crash injection), tests/transactionWire.test.ts,
+and tests/transactionCreateAttach.test.ts.
 
-## 1. 目标与非目标
+## 1. Goals and non-goals
 
-**目标**：一次批准的多文档提交要么全部落盘、要么完全不落盘；进程在提交过程中的
-任意点崩溃后，启动对账能把项目恢复到"完全提交前"或"完全提交后"之一，且恢复
-动作可机器验证、可向操作者解释。
+**Goal**: one approved multi-document commit either lands on disk in full or not at all;
+after the process crashes at any point during the commit, startup reconciliation can restore
+the project to either "fully before commit" or "fully after commit", and the recovery
+actions are machine-verifiable and explainable to the operator.
 
-典型场景（按价值排序）：
+Typical scenarios (ordered by value):
 
-1. 一批**互相独立**的已批准 change set 原子提交（多张地图各自的编辑、地图编辑 +
-   不相关 tileset 的编辑）——"all-or-nothing 批量应用"。
-2. `tiled_create_tileset` + `tiled_add_tileset_to_map` 原子组合（创建即挂载）。
-   可行性依据：create 计划的 `expectedRevision` 就是 prospective TSJ bytes 的
-   SHA-256，attach 计划可据此预先 pin 新 tileset 的确切 revision。
-3. `tiled_update_tile` + 依赖新 tileset revision 的地图编辑（改元数据并同步改
-   地图）——需要"计划 pin 改写"语义，复杂度显著更高。
+1. A batch of **mutually independent** approved change sets committed atomically (edits to
+   several maps, or a map edit plus an edit to an unrelated tileset) — "all-or-nothing
+   batch apply".
+2. `tiled_create_tileset` + `tiled_add_tileset_to_map` as an atomic combination
+   (create-and-attach). Feasibility rests on the create plan's `expectedRevision` being the
+   SHA-256 of the prospective TSJ bytes, which lets the attach plan pin the new tileset's
+   exact revision ahead of time.
+3. `tiled_update_tile` + a map edit that depends on the new tileset revision (change the
+   metadata and update the map in step) — requires "plan pin rewriting" semantics, at
+   significantly higher complexity.
 
-**非目标**：
+**Non-goals**:
 
-- 不改变 `filesystemThreatModelContract` v1 的运维前提：提交窗口内的非合作写者
-  仍是 unsupported。跨文件原子性只在单文件原子性成立的同一前提下成立。
-- 不做跨进程分布式协调、不做网络/云文件系统承诺。
-- 不引入通用嵌套事务或保存点。
+- Does not change the operational premise of `filesystemThreatModelContract` v1:
+  non-cooperating writers inside the commit window remain unsupported. Cross-file atomicity
+  holds only under the same premise under which single-file atomicity holds.
+- No cross-process distributed coordination, and no promises for network/cloud filesystems.
+- No general nested transactions or savepoints.
 
-## 2. 必须保持的既有不变量
+## 2. Existing invariants that must hold
 
-- 单文档提交路径（CAS + checkpoint + 同目录 rename/hard-link promotion +
-  项目文件锁）逐字不变；事务是其上的组合层，不是替代。
-- 每个净变更目标在写前先有 checkpoint（事务成员逐一沿用）。
-- change set 的 preview→批准→apply 边界与 anti-ABA digest 机制不变；事务不得成
-  为绕过单成员批准的通道。
-- `.tiledmcp` 内部状态的启动对账模式（scan → 分类 → 自动处理/留给裁决）沿用。
+- The single-document commit path (CAS + checkpoint + same-directory rename/hard-link
+  promotion + project file lock) is unchanged verbatim; a transaction is a composition
+  layer on top of it, not a replacement.
+- Every net-change target gets a checkpoint before it is written (transaction members
+  inherit this one by one).
+- The change set preview→approve→apply boundary and the anti-ABA digest mechanism are
+  unchanged; a transaction must never become a channel for bypassing per-member approval.
+- The startup reconciliation pattern for `.tiledmcp` internal state (scan → classify →
+  auto-resolve/leave for adjudication) carries over.
 
-## 3. 方案对比
+## 3. Options compared
 
-### 方案 A（推荐）：redo journal + 内容寻址 staging + 有序逐文件 promotion
+### Option A (recommended): redo journal + content-addressed staging + ordered per-file promotion
 
-- 事务 manifest 存于 `.tiledmcp/transactions/<uuid>.json`，字段：
+- The transaction manifest lives at `.tiledmcp/transactions/<uuid>.json`, with fields:
   `{version, id, state: "prepared" | "committed", createdAt, label,
   entries: [{path, kind: "replace" | "create" | "delete",
   expectedRevision | expectedAbsent, afterRevision | afterAbsent,
-  contentObjectHash?, checkpointId}]}`。
-- 新内容以**内容寻址对象**staged（直接复用 checkpoint store 的 object 存储与
-  GC 根机制：prepared 事务 manifest 是新的 GC 根类别）。
-- 提交协议：
-  1. 按 canonical 路径序对全部目标取既有项目文件锁（全序 → 无死锁）。
-  2. 逐目标 CAS 复核（replace/delete 校验当前 revision；create 校验缺失）。
-  3. 逐目标建立 before-state checkpoint（沿用现有 prepare 机制，manifest 关联
-     事务 id 作为 label 约定）。
-  4. staged 内容对象落盘并 fsync。
-  5. **提交点**：事务 manifest 以 `state:"committed"` 原子落盘（单文件 tmp +
-     fsync + rename）。此前崩溃 → 回滚；此后崩溃 → 前滚。
-  6. 逐目标 promotion（replace 走 rename、create 走 hard-link no-replace、
-     delete 走 checkpoint-先行 unlink——三者都是现成机制）。
-  7. 删除事务 manifest（终态即"无 manifest"），checkpoint 标记 committed。
-- 启动对账新增事务扫描（在现有 checkpoint 对账之前）：
-  - `prepared` manifest：提交点未过 → **回滚**：目标未动（promotion 未开始），
-    删除 manifest 与孤儿 staged 对象；成员 checkpoint 走既有 prepared 对账。
-  - `committed` manifest：**前滚**：逐目标核对当前 revision——已等于
-    afterRevision 的跳过；仍等于 expectedRevision 的重放 promotion（staged 对象
-    内容寻址、重放幂等）；两者皆非（崩溃窗口内被外部写）→ 该目标标记 conflict，
-    进入类似 prepared-checkpoint 裁决的人工流程，其余目标照常前滚——原子性承诺
-    在此退化为披露（与威胁模型的非合作写者边界一致）。
-  - 前滚完成 → 删除 manifest。
+  contentObjectHash?, checkpointId}]}`.
+- New content is staged as **content-addressed objects** (directly reusing the checkpoint
+  store's object storage and GC-root mechanism: a prepared transaction manifest is a new
+  GC-root category).
+- Commit protocol:
+  1. Take the existing project file lock on all targets in canonical path order (total
+     order → no deadlock).
+  2. Per-target CAS re-check (replace/delete verify the current revision; create verifies
+     absence).
+  3. Per-target before-state checkpoint (reusing the existing prepare mechanism; the
+     manifest associates the transaction id as a label convention).
+  4. Staged content objects are written to disk and fsynced.
+  5. **Commit point**: the transaction manifest lands atomically with `state:"committed"`
+     (single-file tmp + fsync + rename). A crash before this point → roll back; a crash
+     after → roll forward.
+  6. Per-target promotion (replace via rename, create via hard-link no-replace, delete via
+     checkpoint-first unlink — all three are existing mechanisms).
+  7. Delete the transaction manifest (the terminal state is "no manifest"), and mark the
+     checkpoints committed.
+- Startup reconciliation gains a transaction scan (before the existing checkpoint
+  reconciliation):
+  - `prepared` manifest: the commit point was not crossed → **roll back**: targets are
+    untouched (promotion never started), so delete the manifest and orphaned staged
+    objects; member checkpoints go through the existing prepared reconciliation.
+  - `committed` manifest: **roll forward**: check the current revision per target —
+    targets already equal to afterRevision are skipped; targets still equal to
+    expectedRevision replay promotion (staged objects are content-addressed, so replay is
+    idempotent); targets equal to neither (externally written inside the crash window) →
+    that target is marked conflict and enters a manual flow like prepared-checkpoint
+    adjudication, while the remaining targets roll forward as usual — the atomicity promise
+    degrades here to disclosure (consistent with the threat model's
+    non-cooperating-writer boundary).
+  - Roll-forward complete → delete the manifest.
 
-### 方案 B：undo log（先写目标、before 镜像兜底回滚）
+### Option B: undo log (write targets first, before-images as rollback backstop)
 
-提交点在最后一个目标写完之后；崩溃恢复方向是回滚。缺点：提交点不是单一原子动
-作（需要"全部写完"这一复合事实），恢复语义与现有 create/delete 机制的组合更
-绕；对账时必须区分"第 N 个目标写到一半"。不推荐。
+The commit point comes after the last target is written; crash recovery runs in the
+rollback direction. Drawbacks: the commit point is not a single atomic action (it depends
+on the compound fact "everything has been written"), the recovery semantics compose more
+awkwardly with the existing create/delete mechanisms, and reconciliation must distinguish
+"target N was half-written". Not recommended.
 
-### 方案 C：generation 目录切换
+### Option C: generation directory switch
 
-整目录换代 + 符号切换。与"保留未触碰文件原始 bytes、`.tiledmcp` 之外零额外状
-态"的项目原则冲突，工作区语义对外部工具不透明。排除。
+Whole-directory generations plus a symbolic switch. Conflicts with the project principles
+of "preserve untouched files' original bytes, zero extra state outside `.tiledmcp`", and
+the workspace semantics are opaque to external tools. Excluded.
 
-## 4. Wire 契约设计（推荐形态）
+## 4. Wire contract design (recommended shape)
 
-**组合既有已批准 change set，而不是新的嵌套操作语言：**
+**Compose existing approved change sets, rather than a new nested operation language:**
 
-- 新 preview 工具 `tiled_preview_transaction`：输入
-  `{changeSetIds: [2..16 个已存在且未 apply 的 change set id]}`。
-- 校验：成员必须是文档提交类计划（`mapEdit` / `tilesetEdit` / `tilesetCreate` /
-  `fileDelete`）；目标路径两两不同（同文件批量走单计划多操作，不合并多计划）；
-  成员对另一成员目标的 pin 必须等于该成员的 base revision（共享 pre-state 一
-  致性，S4A），attach 一个同事务创建的 tileset 则必须精确 pin 其 prospective
-  revision（场景 2）。checkpoint 类计划、restore 类计划排除。
-- 返回 `transaction` change set：域分隔 digest 固化全部成员的计划 digest 与目标
-  pin 集，`expectedRevision` 采用聚合 digest（有序 `{path, revision}` 对的
-  SHA-256，与 batch prune 的聚合 pin 先例一致）。
-- apply：走第 3 节协议；响应返回逐目标的 commit 结果数组 + 事务 id。
-- 成员 change set 在事务 preview 时**转移所有权**（成员单独 apply 与事务 apply
-  互斥，防双重提交）；事务过期释放成员。
+- New preview tool `tiled_preview_transaction`: input
+  `{changeSetIds: [2..16 existing, not-yet-applied change set ids]}`.
+- Validation: members must be document-commit plans (`mapEdit` / `tilesetEdit` /
+  `tilesetCreate` / `fileDelete`); target paths must be pairwise distinct (same-file
+  batches go through a single plan with multiple operations, plans are not merged); a
+  member's pin on another member's target must equal that member's base revision (shared
+  pre-state consistency, S4A), and attaching a tileset created in the same transaction
+  must pin its prospective revision exactly (scenario 2). Checkpoint-class plans and
+  restore-class plans are excluded.
+- Returns a `transaction` change set: a domain-separated digest freezes every member's
+  plan digest and target pin set, and `expectedRevision` uses an aggregate digest
+  (SHA-256 of the ordered `{path, revision}` pairs, consistent with the batch prune
+  aggregate-pin precedent).
+- apply: runs the section 3 protocol; the response returns a per-target commit result
+  array plus the transaction id.
+- Member change sets **transfer ownership** at transaction preview (applying a member
+  individually and applying the transaction are mutually exclusive, preventing double
+  commit); transaction expiry releases the members.
 
-## 5. 预算与边界
+## 5. Budgets and boundaries
 
-- 成员数 2..16；staged 总字节 ≤ 64 MiB（与依赖聚合上限一致）。
-- 事务 manifest 计入 checkpoint store 配额体系（staged 对象与 before 对象同池，
-  prepared 事务是 GC 根）。
-- 同一时刻 pending 事务 change set ≤ 4。
+- Member count 2..16; total staged bytes ≤ 64 MiB (matching the dependency-aggregation
+  cap).
+- Transaction manifests count against the checkpoint store quota system (staged objects
+  share the pool with before objects; prepared transactions are GC roots).
+- At most 4 pending transaction change sets at any one time.
 
-## 6. 需要拍板的决策点
+## 6. Decision points requiring sign-off
 
-| # | 决策 | 推荐 |
+| # | Decision | Recommendation |
 |---|---|---|
-| D1 | 方案 A（redo journal + 前滚）vs 方案 B（undo log + 回滚） | A |
-| D2 | wire 形态：组合既有 change set vs 新嵌套操作语言 | 组合既有 change set |
-| D3 | V1 是否包含场景 2（create+attach 耦合放行） | 包含（价值高、pin 可静态验证） |
-| D4 | committed 前滚遇到外部写坏单目标时：整体阻塞人工裁决 vs 该目标单独 conflict、其余前滚 | 单目标 conflict + 披露 |
-| D5 | 成员所有权：事务 preview 即锁定成员（互斥单独 apply） | 锁定 |
+| D1 | Option A (redo journal + roll-forward) vs Option B (undo log + rollback) | A |
+| D2 | Wire shape: compose existing change sets vs a new nested operation language | Compose existing change sets |
+| D3 | Whether V1 includes scenario 2 (create+attach coupling admission) | Include (high value, pin statically verifiable) |
+| D4 | When committed roll-forward finds a single target clobbered by an external write: block the whole transaction for manual adjudication vs mark that target conflict alone and roll the rest forward | Per-target conflict + disclosure |
+| D5 | Member ownership: transaction preview locks members (mutually exclusive with individual apply) | Lock |
 
-## 7. 实施切片（批准后）
+## 7. Implementation slices (after approval)
 
-1. **S1 存储核心**：事务 manifest 读写/校验、staged 对象复用 checkpoint store、
-   提交协议、启动对账（回滚/前滚/conflict 分类），全部配崩溃注入测试（在每个
-   协议步骤间插入 kill 点重放对账）。无 wire 变化。
-2. **S2 wire**：`tiled_preview_transaction` + `transaction` change set kind +
-   apply 分发 + 成员所有权 + 契约/文档/guide；含场景 1。
-3. **S3 场景 2**：create+attach 耦合校验与端到端测试。
-4. **S4（可选，另行拍板）**：场景 3（pin 改写）与同文件多计划合并。
+1. **S1 storage core**: transaction manifest read/write/validation, staged objects reusing
+   the checkpoint store, the commit protocol, and startup reconciliation
+   (rollback/roll-forward/conflict classification), all with crash-injection tests (a kill
+   point inserted between every protocol step, replaying reconciliation). No wire changes.
+2. **S2 wire**: `tiled_preview_transaction` + the `transaction` change set kind + apply
+   dispatch + member ownership + contracts/docs/guide; includes scenario 1.
+3. **S3 scenario 2**: create+attach coupling validation and end-to-end tests.
+4. **S4 (optional, separate sign-off)**: scenario 3 (pin rewriting) and same-file
+   multi-plan merging.

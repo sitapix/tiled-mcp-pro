@@ -1,6 +1,7 @@
 # TiledMCP Pro
 
 [![npm](https://img.shields.io/npm/v/tiled-mcp-pro)](https://www.npmjs.com/package/tiled-mcp-pro)
+[![CI](https://github.com/sitapix/tiled-mcp-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/sitapix/tiled-mcp-pro/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![node](https://img.shields.io/node/v/tiled-mcp-pro)](https://nodejs.org)
 
@@ -8,7 +9,7 @@ An MCP server for [Tiled](https://www.mapeditor.org) map projects. A model can r
 edit, generate, render, and validate `.tmj` / `.tsj` assets on disk without opening the
 editor.
 
-Two rules shape everything else:
+Two rules govern the design:
 
 - **Writes go preview → approval → apply.** A tool returns a change set, your client
   shows the bounded summary to a human, and a second call commits it under a revision
@@ -18,43 +19,60 @@ Two rules shape everything else:
 
 ## Quickstart
 
-All you need is Node.js 20.19+. Tiled itself is **not** required — everything runs on a
-built-in JSON and PNG path (installing Tiled later just unlocks two extra tools).
+Node.js 22.15+ is the only requirement. Everything runs on a built-in JSON and PNG
+path; installing Tiled later unlocks two extra tools.
 
 **1. Pick a project folder.** Any directory holding your `.tmj` maps, `.tsj` tilesets,
-and tile images — or an empty one you want maps created in. The server treats it as a
-hard sandbox and never touches anything outside it.
+and tile images will do, as will an empty one you want maps created in. The server
+treats it as a hard sandbox and never touches anything outside it.
 
 **2. Connect your client.**
 
-Claude Code — no path needed; the server sandboxes itself to the project you have open
+Claude Code needs no path; the server sandboxes itself to the project you have open
 (via [MCP roots](https://modelcontextprotocol.io/specification/2025-06-18/client/roots)):
 
 ```bash
 claude mcp add tiled -- npx -y tiled-mcp-pro
 ```
 
-Claude Desktop or any client without a working directory — pass the project explicitly:
+Codex CLI:
+
+```bash
+codex mcp add tiled -- npx -y tiled-mcp-pro --project-dir /absolute/path/to/your/tiled-project
+```
+
+Gemini CLI:
+
+```bash
+gemini mcp add tiled npx -y tiled-mcp-pro --project-dir /absolute/path/to/your/tiled-project
+```
+
+VS Code:
+
+```bash
+code --add-mcp '{"name":"tiled","command":"npx","args":["-y","tiled-mcp-pro","--project-dir","/absolute/path/to/your/tiled-project"]}'
+```
+
+For Claude Desktop, Cursor, Windsurf, or any other JSON-configured client, the same
+`mcpServers` entry works in `claude_desktop_config.json`, `~/.cursor/mcp.json`, and
+`~/.codeium/windsurf/mcp_config.json`:
 
 ```json
 {
   "mcpServers": {
     "tiled": {
       "command": "npx",
-      "args": [
-        "-y",
-        "tiled-mcp-pro",
-        "--project-dir",
-        "/absolute/path/to/your/tiled-project"
-      ]
+      "args": ["-y", "tiled-mcp-pro", "--project-dir", "/absolute/path/to/your/tiled-project"]
     }
   }
 }
 ```
 
-The first `npx` run downloads the package, so the first connection takes a moment;
-after that it starts from the cache. To poke at the tools by hand instead, use the
-MCP Inspector:
+> [!NOTE]
+> The first `npx` run downloads the package, so the first connection takes a moment;
+> after that it starts from the cache.
+
+To poke at the tools by hand instead, use the MCP Inspector:
 
 ```bash
 npx @modelcontextprotocol/inspector npx -y tiled-mcp-pro --project-dir /absolute/path/to/your/tiled-project
@@ -63,18 +81,19 @@ npx @modelcontextprotocol/inspector npx -y tiled-mcp-pro --project-dir /absolute
 **3. Try it.** Drop a tilesheet PNG into the project folder and ask your assistant to
 *"build a map from tiles/sheet.png — tiles are 16×16"*, or invoke the
 `create_map_from_tilesheet` prompt, which carries the whole sequence. The model renders
-the sheet with every tile labeled by its local ID, so it picks tiles by looking at them,
-not by guessing. Every edit comes back as a preview you approve before anything is
-written.
+the sheet with every tile labeled by its local ID and picks tiles by looking at them.
+Every edit comes back as a preview you approve before the server writes anything.
 
 ## Status
 
-Version 0.0.1. The interface is a draft and is not frozen.
+> [!WARNING]
+> Version 0.2.0. The interface is a draft and is not frozen.
 
-52 tools register: 50 core, plus 2 that appear only when the server detects Tiled or
+53 tools register: 51 core, plus 2 that appear only when the server detects Tiled or
 `tmxrasterizer` on PATH (`tiled_render_map`, `tiled_preview_export`). Everything else,
-including `tiled_preview_terrain`, runs on the built-in JSON and PNG path with no
-external binary. The suite is 1,528 passing tests across 124 files.
+including `tiled_preview_terrain` and `tiled_preview_automap`, runs on the built-in
+JSON and PNG path with no external binary. The suite is 1,587 passing tests across
+128 files.
 
 ## Configuration
 
@@ -82,9 +101,9 @@ Transport is stdio. stdout carries MCP protocol only; diagnostics go to stderr.
 
 The project sandbox resolves in order: `--project-dir`, then `TILED_PROJECT_DIR`, then
 the client's first MCP root (Claude Code advertises your working directory). If none of
-the three yields a directory, startup fails closed — the server never guesses a root.
-Whatever supplies it, the sandbox is hard: paths outside it and symlinks get rejected,
-and the root is fixed for the life of the session (later `roots/list_changed`
+the three yields a directory, startup fails closed rather than guessing a root.
+Whatever supplies it, the sandbox is hard: the server rejects paths outside it and
+symlinks, and the root stays fixed for the life of the session (later `roots/list_changed`
 notifications do not move it).
 
 | Flag | Environment variable | Default |
@@ -97,7 +116,9 @@ CLI wins over environment. Read the values in force from
 
 ## What it does
 
-**Read.** Map summaries, bounded regions, atlas and image-collection tileset details,
+**Read.** Map summaries, bounded regions (a run-length `gids` format, one
+`"0*12,364,0*48"` string per row, keeps large reads compact in a model's context),
+atlas and image-collection tileset details,
 Wang set expansion, object and template reads, usage analysis, four-way connectivity
 analysis, and coordinate conversion across all four projections. TMX/TSX/TX parse through
 a zero-dependency restricted parser, read-only. JSON worlds list read-only.
@@ -112,8 +133,9 @@ creation, file deletion, project class/enum definitions, and a semantic tile-nam
 registry.
 
 **Generate.** Deterministic shape brushes, value noise, cellular caves,
-rooms-and-corridors dungeons, weighted scatter, reference-image import, and multi-layer
-prefab stamping. Same seed, same bytes. No `Math.random` in the codebase.
+rooms-and-corridors dungeons, weighted scatter, reference-image import, multi-layer
+prefab stamping, and a native port of Tiled's AutoMapping rule engine. The same seed
+yields the same bytes; the codebase has no `Math.random`.
 
 **Render.** Native PNG output for orthogonal, isometric, staggered, hexagonal, and
 oblique maps;
@@ -150,7 +172,7 @@ A handler result wraps as `{"result": <success payload>}`. Domain errors set
 `structuredContent.result.error.code` alone. Messages and `details` fields carry no
 stability guarantee.
 
-106 application codes ship in
+107 application codes ship in
 [`contracts/application-errors.v1.json`](contracts/application-errors.v1.json) and at the
 `tiled://application-errors` resource. `INTERNAL_ERROR` is the fallback for unexpected
 handler failures. v1 identifiers keep their meaning, but new codes can appear: treat an
@@ -167,7 +189,7 @@ schema rejects before it reaches a handler returns text only, with no
 | URI | Type | Contents |
 |---|---|---|
 | `tiled://guide` | `text/markdown` | capability discovery, sheet and preview inspection, change-set approval, commit, post-commit re-check |
-| `tiled://application-errors` | `application/json` | the 106-code v1 registry with wire location and compatibility rules |
+| `tiled://application-errors` | `application/json` | the 107-code v1 registry with wire location and compatibility rules |
 
 One resource template registers: `tiled://guide/{section}` serves a single guide
 section by the slug listed in the guide's Contents block. Trust `resources/list` and
@@ -175,8 +197,8 @@ section by the slug listed in the guide's Contents block. Trust `resources/list`
 
 ## Prompts
 
-The tool list answers "what can this server do". It cannot answer "which eight of these
-fifty-two calls, in what order". These carry the sequence:
+A tool list cannot tell an agent which eight of the fifty-three calls to make, or in
+what order. These prompts carry the sequence:
 
 | Prompt | Start here when |
 |---|---|
@@ -186,11 +208,10 @@ fifty-two calls, in what order". These carry the sequence:
 | `review_map` | you want a read-only report and no changes |
 
 Each names exact tools in exact order and restates the invariants that decide whether a
-first call succeeds — revision pinning, `TileRef` rather than raw GIDs, preview before
-apply. `create_map_from_tilesheet` additionally calls out the three things that fail a
-cold start: parent directories are never created by any tool, a newly created map has no
-layer to paint into, and the dependency pin stops being empty the moment a tileset is
-attached.
+first call succeeds: revision pinning, `TileRef` rather than raw GIDs, preview before
+apply. `create_map_from_tilesheet` also calls out the three things that fail a cold
+start: no tool creates parent directories, a newly created map has no layer to paint
+into, and the dependency pin stops being empty the moment you attach a tileset.
 
 ## Documentation
 
@@ -220,7 +241,7 @@ pnpm verify   # typecheck, build, contract check, full test suite
 real `tools/list`, `resources/list`, `resources/templates/list`, and `resources/read`
 responses across the two capability profiles. It never probes PATH or launches Tiled.
 `pnpm contract:check` diffs the regenerated artifacts against what is committed and
-re-validates all 52 examples against their public input schemas. `pnpm test` runs that
+re-validates all 53 examples against their public input schemas. `pnpm test` runs that
 drift gate, builds `dist/`, then runs the suite including a real production stdio smoke
 test. `pnpm test:watch` skips the stdio test to avoid a stale build; run
 `pnpm test:stdio` to rebuild and re-run it alone.
@@ -231,25 +252,28 @@ With Tiled 1.12.2 and its bundled `tmxrasterizer` installed:
 pnpm run verify:tiled-1.12.2
 ```
 
-That gate checks the version, runtime export formats, JSON round-trip and PNG
-rasterization of checked-in fixtures, and confirms Tiled re-exports what
-`tiled_create_map` produced. Plain `pnpm test` never makes the optional Tiled CLI a
-runtime dependency of the core direct-JSON path.
+That is the same `pnpm verify` gate with `TILEDMCP_REQUIRE_TILED_1_12_2=1`: every test
+that cross-checks the real Tiled CLI (version, runtime export formats, JSON round-trip
+and PNG rasterization of checked-in fixtures, Tiled re-exporting what `tiled_create_map`
+produced) turns from a skip into a hard failure when the CLI is missing or wrong. Point
+at a non-standard install with `TILED_CLI_PATH` / `TILED_RASTERIZER_PATH`. Plain
+`pnpm test` never makes the optional Tiled CLI a runtime dependency of the core
+direct-JSON path.
 
 ### Evaluations
 
-`evals/` holds question-and-answer suites for measuring whether a model can actually
-drive this server, each answered against a committed fixture:
+`evals/` holds question-and-answer suites for measuring whether a model can drive
+this server, each answered against a committed fixture:
 
 | Suite | Fixture | Covers |
 |---|---|---|
 | `evals/floor-plan.xml` | `fixtures/floorplan/` | orthogonal map, image import, tile classes and roles, one Wang set |
 | `evals/iso-town.xml` | `fixtures/isotown/` | isometric map, group-nested tile layers, GID flip flags, animated tile, every object shape |
 
-Answers are ground truth computed from the fixture bytes, not estimates. Each suite has
-a test that recomputes every answer and fails if the two disagree — an evaluation whose
-answers have drifted reports a correct model as wrong, which is worse than having none.
-`tests/isoTownEval.test.ts` additionally reads its fixture back through the real service,
+Every answer is ground truth computed from the fixture bytes. Each suite has a test
+that recomputes every answer and fails if the two disagree: an evaluation whose answers
+have drifted reports a correct model as wrong, which is worse than no evaluation at all.
+`tests/isoTownEval.test.ts` also reads its fixture back through the real service,
 so the questions cannot outlive the reads they depend on.
 
 Regenerate a fixture with `pnpm tsx scripts/generate-floorplan-fixture.ts` or
@@ -259,8 +283,8 @@ Regenerate a fixture with `pnpm tsx scripts/generate-floorplan-fixture.ts` or
 
 - **Byte preservation.** Tile edits rewrite only the affected layer's `data`; object
   edits rewrite only `objects`, plus `nextobjectid` on create. BOM, line endings,
-  indentation, key order, and number lexemes survive outside that scope. An array that
-  gets replaced does get reformatted.
+  indentation, key order, and number lexemes survive outside that scope. Replacing an
+  array reformats it.
 - **Projections.** Staggered and hexagonal support summary, region, usage, select, and
   render; edits fail closed. Isometric and oblique (Tiled 1.12+, the skewx/skewy shear)
   are open for edits and for every procedural planner; oblique also creates via
@@ -278,10 +302,10 @@ Regenerate a fixture with `pnpm tsx scripts/generate-floorplan-fixture.ts` or
 - **Tile names.** `.tiledmcp/tile-names.json` is weak metadata. Reads pin each tileset's
   revision but report `localId` verbatim without re-checking tileset contents.
 - **Consistency.** Every multi-file read reports
-  `snapshotConsistency: "non-atomic-read-set"`. Read that as a disclosure, not an
+  `snapshotConsistency: "non-atomic-read-set"`. Read it as a disclosure; it makes no
   atomicity claim. `locked: true` is advisory metadata and blocks nothing.
 - **AutoMapping.** `tiled_preview_automap` runs Tiled 1.9+ rules (rules.txt or a single
-  rules map) through a native, deterministic port of the 1.12.2 rule engine — seeded
+  rules map) through a native, deterministic port of the 1.12.2 rule engine: seeded
   randomness, tile-layer outputs only, fail-closed on the rest. Native because headless
   `--evaluate` cannot reach official AutoMapping in 1.12.2: `tiled.open()` needs the
   editor and `MapFormat.read()` maps are detached, which `autoMap()` rejects (evidence
@@ -291,6 +315,7 @@ Regenerate a fixture with `pnpm tsx scripts/generate-floorplan-fixture.ts` or
 - **Out of scope.** Any force path that modifies or deletes project assets, and a
   persistent prefab library with name matching.
 
-Exact schemas and limits come from
-[docs/generated/mcp-reference.md](docs/generated/mcp-reference.md) and
-`tiled_get_capabilities`, not from this file.
+> [!TIP]
+> Exact schemas and limits come from
+> [docs/generated/mcp-reference.md](docs/generated/mcp-reference.md) and
+> `tiled_get_capabilities`, not from this file.

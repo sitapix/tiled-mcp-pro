@@ -279,9 +279,9 @@ The full per-tool reference for inspecting, previewing, approving, applying, and
 ```json
 {
   "_meta": {
-    "revision": "sha256:d9ab5dddae0c0548312557141d6045540fa3fbe154d452fb137304254e9e2b7d",
+    "revision": "sha256:50c5f68af7a664403296e6166f993c2e8de49b6b1978f850903aeff65fb27cd1",
     "serverVersion": "0.1.0",
-    "size": 123040
+    "size": 123234
   },
   "annotations": {
     "audience": [
@@ -293,7 +293,7 @@ The full per-tool reference for inspecting, previewing, approving, applying, and
   "description": "The full per-tool reference for inspecting, previewing, approving, applying, and verifying safe Tiled map edits. It is large; read one section at a time via tiled://guide/{section} (the Contents block lists the slugs).",
   "mimeType": "text/markdown",
   "name": "guide",
-  "size": 123040,
+  "size": 123234,
   "title": "TiledMCP Pro safe editing guide",
   "uri": "tiled://guide"
 }
@@ -301,7 +301,7 @@ The full per-tool reference for inspecting, previewing, approving, applying, and
 
 Content contract: `text`, 4036 UTF-8 bytes, revision `sha256:a257efdac11748b90ad313f5b052709791cf1956ef070dc2e494573b3e40bcf2`.
 
-Content contract: `text`, 123040 UTF-8 bytes, revision `sha256:d9ab5dddae0c0548312557141d6045540fa3fbe154d452fb137304254e9e2b7d`.
+Content contract: `text`, 123234 UTF-8 bytes, revision `sha256:50c5f68af7a664403296e6166f993c2e8de49b6b1978f850903aeff65fb27cd1`.
 
 Prompts: none.
 
@@ -325,7 +325,7 @@ Annotations:
 }
 ```
 
-Example purpose: pin 住已有依赖和候选 TSJ 后预览新增外部 tileset binding。
+Example purpose: Preview adding a new external tileset binding after pinning the existing dependencies and the candidate TSJ.
 
 ```json
 {
@@ -896,7 +896,7 @@ Annotations:
 }
 ```
 
-Example purpose: 在同一 map/dependency 快照上分析 tile 使用率、密度与未使用 local IDs。
+Example purpose: Analyze tile usage, density, and unused local IDs on a single map/dependency snapshot.
 
 ```json
 {
@@ -1802,7 +1802,7 @@ Annotations:
 }
 ```
 
-Example purpose: 在人工批准后，用预览返回的 changeSetId 和 expectedRevision 提交变更。
+Example purpose: After human approval, commit the change with the changeSetId and expectedRevision the preview returned.
 
 ```json
 {
@@ -6176,7 +6176,7 @@ Annotations:
 }
 ```
 
-Example purpose: 在固定 map/dependency 快照上预览创建一个空 tile layer。
+Example purpose: Preview creating an empty tile layer on a fixed map/dependency snapshot.
 
 ```json
 {
@@ -7048,7 +7048,7 @@ Annotations:
 }
 ```
 
-Example purpose: 以 no-replace 语义直接创建一张新的有限正交 TMJ。
+Example purpose: Directly create a new finite orthogonal TMJ with no-replace semantics.
 
 ```json
 {
@@ -7732,7 +7732,7 @@ Annotations:
 }
 ```
 
-Example purpose: 预览从项目内图集图片创建一个新的 external TSJ；expectedRevision 即批准内容的 SHA-256，apply 绝不覆盖已有文件。
+Example purpose: Preview creating a new external TSJ from an in-project atlas image; expectedRevision is the SHA-256 of the approved content, and apply never overwrites an existing file.
 
 ```json
 {
@@ -8360,7 +8360,7 @@ Annotations:
 }
 ```
 
-Example purpose: 预览删除一个未被引用的项目文档；有界引用扫描 fail closed，apply 先提交当前字节的 checkpoint 再删除，恢复即重建文件。
+Example purpose: Preview deleting an unreferenced project document; the bounded reference scan fails closed, apply commits a checkpoint of the current bytes before deleting, and restore recreates the file.
 
 ```json
 {
@@ -8823,7 +8823,7 @@ Annotations:
 }
 ```
 
-Example purpose: 在 pin 住 map 与 tileset revision 后按显式 class 语义检索 tile。
+Example purpose: Search tiles by explicit class semantics after pinning the map and tileset revisions.
 
 ```json
 {
@@ -9852,7 +9852,7 @@ Annotations:
 }
 ```
 
-Example purpose: 发现本次连接实际提供的 server、profile、CLI 与注册工具能力。
+Example purpose: Discover the server, profile, CLI, and registered tool capabilities this connection actually provides.
 
 ```json
 {
@@ -15303,6 +15303,10 @@ Output schema:
                   "const": "firstgid-ascending-external-asset-ids-and-embedded-source-indexes",
                   "type": "string"
                 },
+                "regionGidsRowEncoding": {
+                  "const": "comma-separated-rle-runs-gid-or-gid-star-count",
+                  "type": "string"
+                },
                 "regionReadFormats": {
                   "items": [
                     {
@@ -15336,6 +15340,7 @@ Output schema:
               "required": [
                 "readTools",
                 "regionReadFormats",
+                "regionGidsRowEncoding",
                 "regionGidsLegend",
                 "arrayEncoding",
                 "encodedEncoding",
@@ -16785,7 +16790,7 @@ Annotations:
 }
 ```
 
-Example purpose: 读取地图摘要、map revision、完整 dependency revisions 与当前路径内的不透明 asset IDs。
+Example purpose: Read the map summary, map revision, complete dependency revisions, and the opaque asset IDs for the current paths.
 
 ```json
 {
@@ -17750,7 +17755,7 @@ Annotations:
 }
 ```
 
-Example purpose: 在整体替换/删除 path 对象或覆盖 text 内容前，读取完整有界语义投影和当前 revisions。
+Example purpose: Read the complete bounded semantic projection and current revisions before replacing or deleting a path object, or overwriting text content.
 
 ```json
 {
@@ -20171,7 +20176,7 @@ Output schema:
 
 Availability: `core`
 
-Returns a bounded rectangular tile region. The default format "cells" resolves every cell into a tileset-asset-ID + local-tile-ID object; format "gids" returns the same region as raw encoded GID rows (flip bits included) plus the map's firstgid legend — prefer it for anything beyond a few dozen cells, it is ~35x smaller and every GID is still validated. Cells referencing an embedded (inline) tileset return a read-only {kind:"embedded", sourceIndex} reference instead of an asset ID (legend entries carry the same sourceIndex). On infinite maps the rectangle uses absolute tile coordinates (negatives allowed) and cells outside every chunk are empty. XML maps (.tmx) always return raw encoded GIDs plus tileset ranges and ignore the format field; finite csv and base64 layers only — plain tile elements and chunks fail closed.
+Returns a bounded rectangular tile region. The default format "cells" resolves every cell into a tileset-asset-ID + local-tile-ID object; format "gids" returns the same region as one RLE string per row — comma-separated runs of raw encoded GIDs (flip bits included), "<gid>" for one cell and "<gid>*<count>" for repeats, e.g. "0*12,364,0*48" — plus the map's firstgid legend. Prefer it for anything beyond a few dozen cells; every GID is still validated. Cells referencing an embedded (inline) tileset return a read-only {kind:"embedded", sourceIndex} reference instead of an asset ID (legend entries carry the same sourceIndex). On infinite maps the rectangle uses absolute tile coordinates (negatives allowed) and cells outside every chunk are empty. XML maps (.tmx) always return the RLE GID shape plus tileset ranges and ignore the format field; finite csv and base64 layers only — plain tile elements and chunks fail closed.
 
 Annotations:
 
@@ -20185,7 +20190,7 @@ Annotations:
 }
 ```
 
-Example purpose: 以紧凑 raw-GID 行加 firstgid legend 读取一个有界 tile-layer 矩形区域。
+Example purpose: Read a bounded tile-layer rectangle as per-row RLE-encoded raw-GID strings plus a firstgid legend.
 
 ```json
 {
@@ -20210,7 +20215,7 @@ Input schema:
   "additionalProperties": false,
   "properties": {
     "format": {
-      "description": "Response encoding for TMJ maps; defaults to \"cells\". \"gids\" returns compact raw GID rows plus a firstgid legend.",
+      "description": "Response encoding for TMJ maps; defaults to \"cells\". \"gids\" returns RLE-run rows of raw encoded GIDs plus a firstgid legend.",
       "enum": [
         "cells",
         "gids"
@@ -20496,7 +20501,7 @@ Output schema:
               "additionalProperties": false,
               "properties": {
                 "cellSemantics": {
-                  "const": "raw-encoded-gids",
+                  "const": "rle-encoded-gids",
                   "type": "string"
                 },
                 "dependencyRevisions": {
@@ -20570,13 +20575,9 @@ Output schema:
                 },
                 "rows": {
                   "items": {
-                    "items": {
-                      "maximum": 4294967295,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "maxItems": 20000,
-                    "type": "array"
+                    "maxLength": 220000,
+                    "pattern": "^(?:0|[1-9]\\d{0,9})(?:\\*(?:[2-9]|[1-9]\\d{1,4}))?(?:,(?:0|[1-9]\\d{0,9})(?:\\*(?:[2-9]|[1-9]\\d{1,4}))?)*$",
+                    "type": "string"
                   },
                   "maxItems": 20000,
                   "type": "array"
@@ -20665,7 +20666,7 @@ Output schema:
               "additionalProperties": false,
               "properties": {
                 "cellSemantics": {
-                  "const": "raw-encoded-gids",
+                  "const": "rle-encoded-gids",
                   "type": "string"
                 },
                 "format": {
@@ -20736,13 +20737,9 @@ Output schema:
                 },
                 "rows": {
                   "items": {
-                    "items": {
-                      "maximum": 4294967295,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "maxItems": 20000,
-                    "type": "array"
+                    "maxLength": 220000,
+                    "pattern": "^(?:0|[1-9]\\d{0,9})(?:\\*(?:[2-9]|[1-9]\\d{1,4}))?(?:,(?:0|[1-9]\\d{0,9})(?:\\*(?:[2-9]|[1-9]\\d{1,4}))?)*$",
+                    "type": "string"
                   },
                   "maxItems": 20000,
                   "type": "array"
@@ -21000,7 +20997,7 @@ Annotations:
 }
 ```
 
-Example purpose: 按地图响应返回的 asset ID 分页读取外部 atlas tileset 详情。
+Example purpose: Read external atlas tileset details, paged, by the asset ID the map response returned.
 
 ```json
 {
@@ -25839,7 +25836,7 @@ Annotations:
 }
 ```
 
-Example purpose: 有界列出已提交的恢复 checkpoint，并单独报告损坏条目。
+Example purpose: Bounded listing of committed recovery checkpoints, with corrupted entries reported separately.
 
 ```json
 {
@@ -26402,7 +26399,7 @@ Annotations:
 }
 ```
 
-Example purpose: 有界列出项目根目录下可用的 Tiled 资产。
+Example purpose: Bounded listing of the Tiled assets available under the project root.
 
 ```json
 {
@@ -26680,7 +26677,7 @@ Annotations:
 }
 ```
 
-Example purpose: 有界列出指定 object layer 的对象。
+Example purpose: Bounded listing of the objects on a given object layer.
 
 ```json
 {
@@ -27764,7 +27761,7 @@ Annotations:
 }
 ```
 
-Example purpose: 只读列出一个 JSON world 的显式地图成员：世界坐标、声明尺寸、逐成员存在性与 revision pin；pattern 成员只计数、绝不做文件系统匹配。
+Example purpose: Read-only listing of a JSON world's explicit map members: world coordinates, declared sizes, per-member existence, and revision pins; pattern members are only counted, never filesystem-matched.
 
 ```json
 {
@@ -28897,7 +28894,7 @@ Annotations:
 }
 ```
 
-Example purpose: 预览显式批量删除两个已提交 checkpoint；服务端 lowercase 规范化并拒绝重复项，再按 canonical UUID 顺序固定并执行，不自动选择 retention victim。
+Example purpose: Preview explicitly pruning two committed checkpoints as a batch; the server lowercase-normalizes and rejects duplicates, then pins and executes in canonical UUID order — it never auto-selects a retention victim.
 
 ```json
 {
@@ -29686,7 +29683,7 @@ Annotations:
 }
 ```
 
-Example purpose: 用固定格式占位 ID 与当前目标 revision 预览单文档恢复，不立即写入。
+Example purpose: Preview a single-document restore using the fixed-format placeholder ID and the current target revision, without writing immediately.
 
 ```json
 {
@@ -30189,7 +30186,7 @@ Annotations:
 }
 ```
 
-Example purpose: 在同一待批准 change set 中预览严格 map 根属性编辑、已有 path 的完整 points 替换，以及 object-local polygon/polyline 与 bounded flat-wire text 创建。
+Example purpose: Preview, in one change set awaiting approval, strict map root-property edits, a full points replacement on an existing path, and object-local polygon/polyline plus bounded flat-wire text creation.
 
 ```json
 {
@@ -39889,7 +39886,7 @@ Annotations:
 }
 ```
 
-Example purpose: 把另一张地图的图块层按名字贴进当前地图：GID 按各自的 firstgid 表翻译而非照抄，源图的空格子跳过。
+Example purpose: Paste another map's tile layers into the current map by name: GIDs translate through each side's firstgid table rather than being copied verbatim, and the source's empty cells are skipped.
 
 ```json
 {
@@ -42333,7 +42330,7 @@ Annotations:
 }
 ```
 
-Example purpose: 预览裁定一个 prepared checkpoint；resolution 选择 discard / commit / abandon，此处证明目标仍等于写入前状态并提议移除 manifest。
+Example purpose: Preview adjudicating a prepared checkpoint; resolution selects discard / commit / abandon — here proving the target still equals its pre-write state and proposing manifest removal.
 
 ```json
 {
@@ -47801,7 +47798,7 @@ Annotations:
 }
 ```
 
-Example purpose: 把 2..16 个已预览未 apply、目标路径两两不同的 change set 组合成一个原子事务 change set；成员被锁定禁止单独 apply，事务 apply 走崩溃可恢复 redo journal，全部落盘或全部不落。
+Example purpose: Combine 2..16 previewed, un-applied change sets with pairwise-distinct target paths into one atomic transaction change set; members are locked against individual apply, and the transaction applies through a crash-recoverable redo journal — all files land or none do.
 
 ```json
 {
@@ -48815,7 +48812,7 @@ Annotations:
 }
 ```
 
-Example purpose: 预览 world 成员编辑：按当前数组 index 定位成员、以 world revision 为 pin；add 要求既有 .tmj 地图，被引用的地图文件绝不被改动。
+Example purpose: Preview world member edits: members are addressed by current array index and pinned by the world revision; add requires an existing .tmj map, and referenced map files are never modified.
 
 ```json
 {
@@ -49537,7 +49534,7 @@ Annotations:
 }
 ```
 
-Example purpose: 预览把一个受限档案的 .tmj 原生序列化为字节级一致的 .tmx；写入器由源扩展名 (.tmj/.tsj/.tj) 选择。
+Example purpose: Preview natively serializing a restricted-profile .tmj into a byte-level-consistent .tmx; the writer is selected by the source extension (.tmj/.tsj/.tj).
 
 ```json
 {
@@ -50549,7 +50546,7 @@ Annotations:
 }
 ```
 
-Example purpose: 仅在探测并注册 TmxRasterizer 后生成可选的高保真整图 PNG。
+Example purpose: Generate the optional high-fidelity whole-map PNG, available only after TmxRasterizer is probed and registered.
 
 ```json
 {
@@ -50943,7 +50940,7 @@ Annotations:
 }
 ```
 
-Example purpose: 用内建渲染器生成带网格、绝对坐标和 tile-union 矩形高亮的有界地图预览。
+Example purpose: Generate a bounded map preview with grid, absolute coordinates, and a tile-union rectangle highlight using the built-in renderer.
 
 ```json
 {
@@ -53312,7 +53309,7 @@ Annotations:
 }
 ```
 
-Example purpose: 按输入顺序放大并标注一组显式、稀疏的 local tile IDs。
+Example purpose: Magnify and label an explicit, sparse set of local tile IDs in input order.
 
 ```json
 {
@@ -54239,7 +54236,7 @@ Annotations:
 }
 ```
 
-Example purpose: 渲染带 local tile ID 标注的有界 atlas 分页图。
+Example purpose: Render a bounded atlas page with every tile labeled by its local tile ID.
 
 ```json
 {
@@ -55131,7 +55128,7 @@ Annotations:
 }
 ```
 
-Example purpose: 把已绑定的图块集原地指向另一个 TSJ：firstgid 不动，地图中每个 GID 原样保留，用于把占位美术换成最终美术。
+Example purpose: Point an already-bound tileset at another TSJ in place: firstgid stays put and every GID in the map is preserved verbatim — for swapping placeholder art for final art.
 
 ```json
 {
@@ -56665,7 +56662,7 @@ Annotations:
 }
 ```
 
-Example purpose: pin 住 map 与 TSJ revision 后预览单 tile 的 probability/class/动画元数据更新。
+Example purpose: Preview a single tile's probability/class/animation metadata update after pinning the map and TSJ revisions.
 
 ```json
 {
@@ -60091,7 +60088,7 @@ Annotations:
 }
 ```
 
-Example purpose: 只读执行结构与当前 MVP profile 校验。
+Example purpose: Run structural and current-MVP-profile validation, read-only.
 
 ```json
 {

@@ -2869,21 +2869,6 @@ export const checkpointPruneBatchPreviewToolOutputSchema =
     checkpointPruneBatchPreviewOutputSchema,
   );
 
-export const preparedCheckpointDiscardPreviewToolOutputSchema =
-  toolOutputSchema(
-    preparedCheckpointDiscardPreviewOutputSchema,
-  );
-
-export const preparedCheckpointCommitPreviewToolOutputSchema =
-  toolOutputSchema(
-    preparedCheckpointCommitPreviewOutputSchema,
-  );
-
-export const preparedCheckpointAbandonPreviewToolOutputSchema =
-  toolOutputSchema(
-    preparedCheckpointAbandonPreviewOutputSchema,
-  );
-
 /**
  * `tiled_preview_prepared_checkpoint` absorbed the three per-resolution tools,
  * which took an identical `checkpointId` and identical annotations and differed

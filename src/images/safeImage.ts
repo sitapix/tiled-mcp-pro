@@ -34,14 +34,14 @@ sharp.unblock({
 
 export type SafeImageFormat = "jpeg" | "png" | "svg" | "webp";
 
-export interface SafeImageLimits {
+interface SafeImageLimits {
   maxInputBytes: number;
   maxInputPixels: number;
   maxInputEdge: number;
   maxSimpleSvgBytes?: number;
 }
 
-export const DEFAULT_SAFE_IMAGE_LIMITS: Readonly<SafeImageLimits> = {
+const DEFAULT_SAFE_IMAGE_LIMITS: Readonly<SafeImageLimits> = {
   maxInputBytes: 64 * 1024 * 1024,
   maxInputPixels: 4_096 * 4_096,
   maxInputEdge: 8_192,

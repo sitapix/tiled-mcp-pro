@@ -126,12 +126,13 @@ describe("infinite chunked map read-only support", () => {
         format: "gids",
       });
     expect(region.cellSemantics).toBe(
-      "raw-encoded-gids",
+      "rle-encoded-gids",
     );
-    // Same window as the resolved-cell read above: raw GIDs, empty cells 0.
+    // Same window as the resolved-cell read above: RLE runs of raw GIDs,
+    // empty cells 0.
     expect(region.rows).toEqual([
-      [1, 2, 0, 0],
-      [0, 0, 3, 0],
+      "1,2,0*2",
+      "0*2,3,0",
     ]);
     expect(region.tilesets).toEqual([
       expect.objectContaining({

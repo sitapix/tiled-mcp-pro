@@ -16,7 +16,7 @@ import {
 const TILESET_PROPERTY_EDIT_PLAN_HASH_DOMAIN =
   "tiledmcp/tileset-property-edit-plan/v1\0";
 
-export const UPDATE_TILESET_WARNING =
+const UPDATE_TILESET_WARNING =
   "This rewrites tileset-level members inside one external tileset. It never changes the atlas image or referencing maps, but pending map change sets pinned to the old tileset revision will conflict after apply. Without an `atlas` field it also leaves tile geometry, tile count and GID layout untouched; with one it re-cuts the grid over the same image, which changes tilecount and therefore the GID span every referencing map reads -- allowed only once the service has proven the pinned map still resolves and no other project asset references this tileset.";
 
 export const MAX_TILESET_NAME_CODE_POINTS = 1_024;
@@ -49,28 +49,28 @@ export const TILESET_GRID_ORIENTATIONS = [
   "isometric",
 ] as const;
 
-export type TilesetObjectAlignment =
+type TilesetObjectAlignment =
   (typeof TILESET_OBJECT_ALIGNMENTS)[number];
-export type TilesetRenderSize =
+type TilesetRenderSize =
   (typeof TILESET_RENDER_SIZES)[number];
-export type TilesetFillMode =
+type TilesetFillMode =
   (typeof TILESET_FILL_MODES)[number];
-export type TilesetGridOrientation =
+type TilesetGridOrientation =
   (typeof TILESET_GRID_ORIENTATIONS)[number];
 
-export interface TilesetOffsetInput {
+interface TilesetOffsetInput {
   x: number;
   y: number;
 }
 
-export interface TilesetTransformationsInput {
+interface TilesetTransformationsInput {
   hFlip: boolean;
   vFlip: boolean;
   rotate: boolean;
   preferUntransformed: boolean;
 }
 
-export interface TilesetGridInput {
+interface TilesetGridInput {
   orientation: TilesetGridOrientation;
   width: number;
   height: number;

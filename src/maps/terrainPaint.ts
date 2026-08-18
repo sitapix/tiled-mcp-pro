@@ -1,9 +1,9 @@
 import { TiledMcpError } from "../errors.js";
 
-export const MAX_TERRAIN_CORNERS_PER_CALL = 64;
+const MAX_TERRAIN_CORNERS_PER_CALL = 64;
 export const TERRAIN_OK_MARKER =
   "TILEDMCP_TERRAIN_OK";
-export const TERRAIN_ERROR_MARKER =
+const TERRAIN_ERROR_MARKER =
   "TILEDMCP_TERRAIN_ERR";
 
 export interface TerrainCornerInput {

@@ -6,7 +6,7 @@
       "name": "tiled_get_capabilities",
       "profile": "core",
       "arguments": {},
-      "purpose": "发现本次连接实际提供的 server、profile、CLI 与注册工具能力。"
+      "purpose": "Discover the server, profile, CLI, and registered tool capabilities this connection actually provides."
     },
     {
       "name": "tiled_list_files",
@@ -14,7 +14,7 @@
       "arguments": {
         "limit": 100
       },
-      "purpose": "有界列出项目根目录下可用的 Tiled 资产。"
+      "purpose": "Bounded listing of the Tiled assets available under the project root."
     },
     {
       "name": "tiled_list_world_maps",
@@ -22,7 +22,7 @@
       "arguments": {
         "worldPath": "overworld.world"
       },
-      "purpose": "只读列出一个 JSON world 的显式地图成员：世界坐标、声明尺寸、逐成员存在性与 revision pin；pattern 成员只计数、绝不做文件系统匹配。"
+      "purpose": "Read-only listing of a JSON world's explicit map members: world coordinates, declared sizes, per-member existence, and revision pins; pattern members are only counted, never filesystem-matched."
     },
     {
       "name": "tiled_list_property_types",
@@ -47,7 +47,7 @@
           }
         ]
       },
-      "purpose": "预览 world 成员编辑：按当前数组 index 定位成员、以 world revision 为 pin；add 要求既有 .tmj 地图，被引用的地图文件绝不被改动。"
+      "purpose": "Preview world member edits: members are addressed by current array index and pinned by the world revision; add requires an existing .tmj map, and referenced map files are never modified."
     },
     {
       "name": "tiled_list_checkpoints",
@@ -57,7 +57,7 @@
         "limit": 25,
         "scanLimit": 100
       },
-      "purpose": "有界列出已提交的恢复 checkpoint，并单独报告损坏条目。"
+      "purpose": "Bounded listing of committed recovery checkpoints, with corrupted entries reported separately."
     },
     {
       "name": "tiled_create_checkpoint",
@@ -78,7 +78,7 @@
         "checkpointId": "00000000-0000-4000-8000-000000000000",
         "resolution": "discard"
       },
-      "purpose": "预览裁定一个 prepared checkpoint；resolution 选择 discard / commit / abandon，此处证明目标仍等于写入前状态并提议移除 manifest。"
+      "purpose": "Preview adjudicating a prepared checkpoint; resolution selects discard / commit / abandon — here proving the target still equals its pre-write state and proposing manifest removal."
     },
     {
       "name": "tiled_preview_checkpoint_prune_batch",
@@ -89,7 +89,7 @@
           "bbbbbbbb-0000-4000-8000-000000000000"
         ]
       },
-      "purpose": "预览显式批量删除两个已提交 checkpoint；服务端 lowercase 规范化并拒绝重复项，再按 canonical UUID 顺序固定并执行，不自动选择 retention victim。"
+      "purpose": "Preview explicitly pruning two committed checkpoints as a batch; the server lowercase-normalizes and rejects duplicates, then pins and executes in canonical UUID order — it never auto-selects a retention victim."
     },
     {
       "name": "tiled_preview_checkpoint_restore",
@@ -98,7 +98,7 @@
         "checkpointId": "00000000-0000-4000-8000-000000000000",
         "expectedRevision": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
       },
-      "purpose": "用固定格式占位 ID 与当前目标 revision 预览单文档恢复，不立即写入。"
+      "purpose": "Preview a single-document restore using the fixed-format placeholder ID and the current target revision, without writing immediately."
     },
     {
       "name": "tiled_get_map_summary",
@@ -106,7 +106,7 @@
       "arguments": {
         "mapPath": "maps/example.tmj"
       },
-      "purpose": "读取地图摘要、map revision、完整 dependency revisions 与当前路径内的不透明 asset IDs。"
+      "purpose": "Read the map summary, map revision, complete dependency revisions, and the opaque asset IDs for the current paths."
     },
     {
       "name": "tiled_get_tileset",
@@ -117,7 +117,7 @@
         "startTileId": 0,
         "limit": 32
       },
-      "purpose": "按地图响应返回的 asset ID 分页读取外部 atlas tileset 详情。"
+      "purpose": "Read external atlas tileset details, paged, by the asset ID the map response returned."
     },
     {
       "name": "tiled_find_tiles",
@@ -139,7 +139,7 @@
         "expectedMapRevision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         "expectedTilesetRevision": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
       },
-      "purpose": "在 pin 住 map 与 tileset revision 后按显式 class 语义检索 tile。"
+      "purpose": "Search tiles by explicit class semantics after pinning the map and tileset revisions."
     },
     {
       "name": "tiled_get_region",
@@ -153,7 +153,7 @@
         "height": 8,
         "format": "gids"
       },
-      "purpose": "以紧凑 raw-GID 行加 firstgid legend 读取一个有界 tile-layer 矩形区域。"
+      "purpose": "Read a bounded tile-layer rectangle as per-row RLE-encoded raw-GID strings plus a firstgid legend."
     },
     {
       "name": "tiled_render_tileset_sheet",
@@ -166,7 +166,7 @@
         "columns": 8,
         "scale": 2
       },
-      "purpose": "渲染带 local tile ID 标注的有界 atlas 分页图。"
+      "purpose": "Render a bounded atlas page with every tile labeled by its local tile ID."
     },
     {
       "name": "tiled_render_tiles",
@@ -184,7 +184,7 @@
         "expectedMapRevision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         "expectedTilesetRevision": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
       },
-      "purpose": "按输入顺序放大并标注一组显式、稀疏的 local tile IDs。"
+      "purpose": "Magnify and label an explicit, sparse set of local tile IDs in input order."
     },
     {
       "name": "tiled_render_preview",
@@ -220,7 +220,7 @@
           ]
         }
       },
-      "purpose": "用内建渲染器生成带网格、绝对坐标和 tile-union 矩形高亮的有界地图预览。"
+      "purpose": "Generate a bounded map preview with grid, absolute coordinates, and a tile-union rectangle highlight using the built-in renderer."
     },
     {
       "name": "tiled_render_diff",
@@ -251,7 +251,7 @@
         "layerId": 2,
         "limit": 100
       },
-      "purpose": "有界列出指定 object layer 的对象。"
+      "purpose": "Bounded listing of the objects on a given object layer."
     },
     {
       "name": "tiled_get_object",
@@ -260,7 +260,7 @@
         "mapPath": "maps/example.tmj",
         "objectId": 7
       },
-      "purpose": "在整体替换/删除 path 对象或覆盖 text 内容前，读取完整有界语义投影和当前 revisions。"
+      "purpose": "Read the complete bounded semantic projection and current revisions before replacing or deleting a path object, or overwriting text content."
     },
     {
       "name": "tiled_validate",
@@ -268,7 +268,7 @@
       "arguments": {
         "mapPath": "maps/example.tmj"
       },
-      "purpose": "只读执行结构与当前 MVP profile 校验。"
+      "purpose": "Run structural and current-MVP-profile validation, read-only."
     },
     {
       "name": "tiled_analyze_usage",
@@ -281,7 +281,7 @@
           "asset_0123456789abcdef01234567": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
         }
       },
-      "purpose": "在同一 map/dependency 快照上分析 tile 使用率、密度与未使用 local IDs。"
+      "purpose": "Analyze tile usage, density, and unused local IDs on a single map/dependency snapshot."
     },
     {
       "name": "tiled_check_connectivity",
@@ -342,7 +342,7 @@
         "tileHeight": 16,
         "backgroundColor": "#202830"
       },
-      "purpose": "以 no-replace 语义直接创建一张新的有限正交 TMJ。"
+      "purpose": "Directly create a new finite orthogonal TMJ with no-replace semantics."
     },
     {
       "name": "tiled_create_tileset",
@@ -356,7 +356,7 @@
         "spacing": 2,
         "name": "props"
       },
-      "purpose": "预览从项目内图集图片创建一个新的 external TSJ；expectedRevision 即批准内容的 SHA-256，apply 绝不覆盖已有文件。"
+      "purpose": "Preview creating a new external TSJ from an in-project atlas image; expectedRevision is the SHA-256 of the approved content, and apply never overwrites an existing file."
     },
     {
       "name": "tiled_delete_file",
@@ -364,7 +364,7 @@
       "arguments": {
         "path": "tiles/unused.tsj"
       },
-      "purpose": "预览删除一个未被引用的项目文档；有界引用扫描 fail closed，apply 先提交当前字节的 checkpoint 再删除，恢复即重建文件。"
+      "purpose": "Preview deleting an unreferenced project document; the bounded reference scan fails closed, apply commits a checkpoint of the current bytes before deleting, and restore recreates the file."
     },
     {
       "name": "tiled_add_tileset_to_map",
@@ -378,7 +378,7 @@
         },
         "expectedTilesetRevision": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
       },
-      "purpose": "pin 住已有依赖和候选 TSJ 后预览新增外部 tileset binding。"
+      "purpose": "Preview adding a new external tileset binding after pinning the existing dependencies and the candidate TSJ."
     },
     {
       "name": "tiled_replace_tileset_in_map",
@@ -393,7 +393,7 @@
         },
         "expectedTilesetRevision": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
       },
-      "purpose": "把已绑定的图块集原地指向另一个 TSJ：firstgid 不动，地图中每个 GID 原样保留，用于把占位美术换成最终美术。"
+      "purpose": "Point an already-bound tileset at another TSJ in place: firstgid stays put and every GID in the map is preserved verbatim — for swapping placeholder art for final art."
     },
     {
       "name": "tiled_preview_merge_map",
@@ -408,7 +408,7 @@
         "offsetX": 8,
         "offsetY": 4
       },
-      "purpose": "把另一张地图的图块层按名字贴进当前地图：GID 按各自的 firstgid 表翻译而非照抄，源图的空格子跳过。"
+      "purpose": "Paste another map's tile layers into the current map by name: GIDs translate through each side's firstgid table rather than being copied verbatim, and the source's empty cells are skipped."
     },
     {
       "name": "tiled_update_tile",
@@ -450,7 +450,7 @@
           }
         ]
       },
-      "purpose": "pin 住 map 与 TSJ revision 后预览单 tile 的 probability/class/动画元数据更新。"
+      "purpose": "Preview a single tile's probability/class/animation metadata update after pinning the map and TSJ revisions."
     },
     {
       "name": "tiled_update_tileset",
@@ -546,7 +546,7 @@
           "asset_0123456789abcdef01234567": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
         }
       },
-      "purpose": "在固定 map/dependency 快照上预览创建一个空 tile layer。"
+      "purpose": "Preview creating an empty tile layer on a fixed map/dependency snapshot."
     },
     {
       "name": "tiled_preview_edits",
@@ -666,7 +666,7 @@
           }
         ]
       },
-      "purpose": "在同一待批准 change set 中预览严格 map 根属性编辑、已有 path 的完整 points 替换，以及 object-local polygon/polyline 与 bounded flat-wire text 创建。"
+      "purpose": "Preview, in one change set awaiting approval, strict map root-property edits, a full points replacement on an existing path, and object-local polygon/polyline plus bounded flat-wire text creation."
     },
     {
       "name": "tiled_preview_shape",
@@ -882,7 +882,7 @@
         "targetPath": "maps/example.tmx",
         "expectedRevision": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
       },
-      "purpose": "预览把一个受限档案的 .tmj 原生序列化为字节级一致的 .tmx；写入器由源扩展名 (.tmj/.tsj/.tj) 选择。"
+      "purpose": "Preview natively serializing a restricted-profile .tmj into a byte-level-consistent .tmx; the writer is selected by the source extension (.tmj/.tsj/.tj)."
     },
     {
       "name": "tiled_select",
@@ -990,7 +990,7 @@
           "changeset:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
         ]
       },
-      "purpose": "把 2..16 个已预览未 apply、目标路径两两不同的 change set 组合成一个原子事务 change set；成员被锁定禁止单独 apply，事务 apply 走崩溃可恢复 redo journal，全部落盘或全部不落。"
+      "purpose": "Combine 2..16 previewed, un-applied change sets with pairwise-distinct target paths into one atomic transaction change set; members are locked against individual apply, and the transaction applies through a crash-recoverable redo journal — all files land or none do."
     },
     {
       "name": "tiled_apply_change_set",
@@ -999,7 +999,7 @@
         "changeSetId": "changeset:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "expectedRevision": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
       },
-      "purpose": "在人工批准后，用预览返回的 changeSetId 和 expectedRevision 提交变更。"
+      "purpose": "After human approval, commit the change with the changeSetId and expectedRevision the preview returned."
     },
     {
       "name": "tiled_render_map",
@@ -1009,7 +1009,7 @@
         "size": 1024,
         "ignoreVisibility": false
       },
-      "purpose": "仅在探测并注册 TmxRasterizer 后生成可选的高保真整图 PNG。"
+      "purpose": "Generate the optional high-fidelity whole-map PNG, available only after TmxRasterizer is probed and registered."
     },
     {
       "name": "tiled_preview_export",

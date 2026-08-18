@@ -3,3 +3,6 @@ dist/
 coverage/
 .tiledmcp/
 *.log
+.DS_Store
+.codex/
+.serena/
